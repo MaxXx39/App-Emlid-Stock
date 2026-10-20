@@ -41,7 +41,22 @@ Appli Android **native en Kotlin** pour lever des stocks de matériaux avec un G
 | Altitude mock : ellipsoïdale ou liée à un géoïde ? | Lire la hauteur ellipsoïdale dans le NMEA (GGA) |
 | Statut RTK « fix » lisible de façon fiable | Le lire dans le NMEA (GGA, qualité 4) |
 
-Résultats du test terrain : **à compléter** quand l'utilisateur aura envoyé son journal (`exemples/test-rx2_….txt`).
+### Résultats du test terrain n° 1 (20.10.2026, `exemples/test-rx2_2026-10-20_08h20.txt`)
+
+Téléphone Crosscall Core-T4, Android 10. RX2 « RX2-953A9 », corrections swipos.
+
+| Point | Résultat |
+| --- | --- |
+| Mock location | **Pas active** : toutes les positions venaient du GPS du téléphone (`fictive=false`, précision 3 à 20 m). La doc Emlid du RX2 parle de la mock location via l'appli « Lefebure NTRIP Client », pas via Emlid Flow : à confirmer. |
+| NMEA Bluetooth direct | **Marche**, en même temps qu'Emlid Flow (le RTK fixe a été gardé pendant la connexion). Phrases : GGA (5 Hz), ETC (5 Hz), RMC, GST, VTG, ZDA, GSA, GSV, EBP. |
+| Statut RTK | **Lisible** dans GGA : qualité 1 (autonome) puis 4 (fixe), ID station 1927 puis 1935. |
+| Compensation | Dans le **GGA**, avec ETC à l'état 30 (compensation), inclinaison 5° à 17° : position stable à ± 3 cm en plan et ± 2 cm en hauteur → le GGA semble déjà donner la position du bout de canne. |
+| Hauteur de canne dans ETC | **Absente** (aucun champ constant). |
+| Altitude | GGA : altitude 419.06 m + séparation 47.234 m (constante, modèle du récepteur) = hauteur ellipsoïdale 466.29 m. |
+
+Message `$GNETC` observé (ordre des champs selon la doc Emlid « NMEA specification », à confirmer) : 1 heure UTC, 2 état (10, 20, 30 ; 30 = compensation, seuls les états 30 remplissent les champs suivants), 3 code de notification (00 ou 20), 4 cap (°), 5 direction de l'inclinaison (°), 6 valeur de l'inclinaison (°), 7 et 8 coefficients de précision axes N et E (toujours égaux dans le test), 9 non identifié (varie avec l'inclinaison).
+
+Bug du prototype 0.1 : le point 1 affichait « OUI » avec les positions du GPS du téléphone ; il faudrait exiger `fictive=true`.
 
 ## 5. Coordonnées et altitudes - décisions et points ouverts
 
