@@ -3,6 +3,7 @@ package ch.emlidstock.noyau
 import ch.emlidstock.noyau.nmea.champsNumerotes
 import ch.emlidstock.noyau.nmea.degresDepuisNmea
 import ch.emlidstock.noyau.nmea.libelleQualite
+import ch.emlidstock.noyau.nmea.lireEtc
 import ch.emlidstock.noyau.nmea.lireGga
 import ch.emlidstock.noyau.nmea.lirePhraseNmea
 import ch.emlidstock.noyau.nmea.sommeDeControle
@@ -92,5 +93,29 @@ class NmeaTest {
     @Test
     fun `champs numerotes pour l'affichage`() {
         assertEquals("1: A | 2: (vide) | 3: 1.800", champsNumerotes(lirePhraseNmea("\$GNETC,A,,1.800")!!))
+    }
+}
+
+class EtcTest {
+
+    @Test
+    fun `ETC du test terrain en compensation`() {
+        val etat = lireEtc(lirePhraseNmea("\$GNETC,062004.20,30,00,307.575,298.576,8.426,1.472,1.472,1.516*57")!!)!!
+        assertEquals(30, etat.etat)
+        assertEquals(8.426, etat.inclinaisonDeg!!, 1e-9)
+        assertTrue(etat.estActive)
+    }
+
+    @Test
+    fun `ETC du test terrain sans compensation`() {
+        val etat = lireEtc(lirePhraseNmea("\$GNETC,061840.00,20,20,,,,,,*52")!!)!!
+        assertEquals(20, etat.etat)
+        assertNull(etat.inclinaisonDeg)
+        assertFalse(etat.estActive)
+    }
+
+    @Test
+    fun `un GGA n'est pas lu comme ETC`() {
+        assertNull(lireEtc(lirePhraseNmea("\$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47")!!))
     }
 }

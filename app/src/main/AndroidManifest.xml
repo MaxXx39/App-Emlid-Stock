@@ -1,10 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Position (lue depuis Emlid Flow par la « mock location ») -->
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-
     <!-- Bluetooth (flux NMEA du RX2) : anciennes versions d'Android -->
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
@@ -12,7 +8,6 @@
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
     <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
-    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
 
     <application
         android:icon="@mipmap/ic_lanceur"
@@ -20,7 +15,7 @@
         android:theme="@android:style/Theme.Material.Light.DarkActionBar">
 
         <activity
-            android:name=".EcranTest"
+            android:name=".EcranPosition"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

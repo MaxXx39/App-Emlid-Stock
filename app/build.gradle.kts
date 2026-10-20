@@ -19,7 +19,7 @@ android {
         minSdk = 26
         targetSdk = 35
         versionCode = numeroVersion
-        versionName = "0.1.$numeroVersion"
+        versionName = "0.2.$numeroVersion"
     }
 
     // Clé de signature fixe, gardée dans le dépôt : toutes les versions sont signées pareil,
