@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Icône : un tas (triangle ambre) posé sur le sol -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="@color/ambre"
+        android:pathData="M30,70 L50,40 L58,48 L64,42 L78,70 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M28,72 L80,72 L80,75 L28,75 Z" />
+</vector>
