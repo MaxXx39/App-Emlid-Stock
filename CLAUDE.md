@@ -58,6 +58,13 @@ Message `$GNETC` observé (ordre des champs selon la doc Emlid « NMEA specifica
 
 Bug du prototype 0.1 : le point 1 affichait « OUI » avec les positions du GPS du téléphone ; il faudrait exiger `fictive=true`.
 
+### Décisions après le test (20.10.2026)
+
+- **Position : lecture directe du NMEA Bluetooth du RX2** (plan B du cahier des charges). Pas de mock location. Emlid Flow reste ouvert seulement pour envoyer les corrections swipos au RX2. Statut RTK et position du bout de canne lus dans le GGA, hauteur ellipsoïdale = altitude GGA + séparation.
+- **Hauteur de canne** : saisie une fois dans l'appli, affichée comme **rappel seulement** (le RX2 l'applique déjà ; elle n'entre dans aucun calcul).
+- Firmware du RX2 : 2.11 ou plus récent (corrige l'écart GGA / RMC avec la compensation).
+- **À reconfirmer** : la compensation dans le GGA. L'utilisateur ne sait plus si la pointe de la canne restait immobile pendant le test d'inclinaison ; refaire un test court (pointe sur un point fixe, canne inclinée dans plusieurs directions).
+
 ## 5. Coordonnées et altitudes - décisions et points ouverts
 
 Réponses de l'utilisateur (20.10.2026) :
