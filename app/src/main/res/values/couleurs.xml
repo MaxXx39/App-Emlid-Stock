@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Couleurs Perrin Groupe, comme l'appli topo -->
+    <color name="bleu_nuit">#1B2B36</color>
+    <color name="ambre">#F6AB07</color>
+</resources>
