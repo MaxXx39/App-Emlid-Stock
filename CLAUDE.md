@@ -62,7 +62,15 @@ Bug du prototype 0.1 : le point 1 affichait « OUI » avec les positions du GPS 
 - **Position : lecture directe du NMEA Bluetooth du RX2** (plan B du cahier des charges). Pas de mock location. Emlid Flow reste ouvert seulement pour envoyer les corrections swipos au RX2. Statut RTK et position du bout de canne lus dans le GGA, hauteur ellipsoïdale = altitude GGA + séparation.
 - **Hauteur de canne** : saisie une fois dans l'appli, affichée comme **rappel seulement** (le RX2 l'applique déjà ; elle n'entre dans aucun calcul).
 - Firmware du RX2 : 2.11 ou plus récent (corrige l'écart GGA / RMC avec la compensation).
-- **À reconfirmer** : la compensation dans le GGA. L'utilisateur ne sait plus si la pointe de la canne restait immobile pendant le test d'inclinaison ; refaire un test court (pointe sur un point fixe, canne inclinée dans plusieurs directions).
+- ~~À reconfirmer : la compensation dans le GGA.~~ → **infirmé par le test n° 2**, voir ci-dessous.
+
+### Résultats du test terrain n° 2 (20.10.2026, version 0.2, `exemples/journal-rx2_2026-10-20_10h08.txt`)
+
+Sur le point 1 (`exemples/test_bureau_pix4d.csv` : 2509500.921 / 1141119.690 / 414.856), canne verticale :
+- **Plan** : écart d'environ 1 cm → la conversion MN95 est confirmée en conditions réelles.
+- **Hauteur** : la position GGA est **1.96 m plus haute** que le point (environ la hauteur de canne + décalage de l'antenne).
+- **Inclinaison** : même avec ETC à l'état 30, la position GGA bouge comme la tête de canne (jusqu'à 85 cm pour 26°, hauteur qui baisse en cos). **Le GGA reçu en Bluetooth est donc la position de l'antenne, sans hauteur de canne ni compensation.** (Le test n° 1 avait été mal interprété : la canne ne bougeait sans doute pas.)
+- **ETC** : le champ 5 est bien la direction de l'inclinaison (azimut vers lequel la tête de canne part) et le champ 6 l'angle. En calculant `bout = antenne − L × (sin i · sin d, sin i · cos d, cos i)` avec L = 1.962 m, on retrouve le point à 1 à 3 cm près quand la canne est immobile (plus d'écart pendant les mouvements rapides). Calcul fait à titre d'analyse, **pas validé** et pas codé.
 
 ## 5. Coordonnées et altitudes - méthode validée (20.10.2026)
 
