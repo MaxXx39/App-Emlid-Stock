@@ -29,12 +29,16 @@ Appli Android **native en Kotlin** pour lever des stocks de matériaux avec un G
    - Bandeaux toujours visibles : « RTK » et « Inclinaison PRÊTE / NON PRÊTE » (position grisée « antenne, pas le bout de canne » si pas prête).
    - Suppression d'un point : pour l'instant en touchant le point dans la liste (sur la carte à l'étape 4).
    - Données : fichier `leves.json` dans le dossier privé de l'appli (classe `Depot`, écriture via fichier temporaire). Pas encore d'export ni de synchro (étape 7).
-4. Carte 2D en cours de levé avec fond swisstopo (SWISSIMAGE). ← **fait (version 0.4), en attente du test terrain**
+4. Carte 2D en cours de levé avec fond swisstopo (SWISSIMAGE). ← **fait (version 0.4), testé le 21.10.2026** (cadrage, photo, zoom, calques, suppression au toucher : OK)
    - Inspirée du plan de l'appli topo V1 (demande de l'utilisateur) : tuiles WMTS swisstopo directement en MN95 (`noyau/.../carte/Fond.kt`, repris de `app-topo/src/plan/fond.js` avec ses tests), bouton « Calques » (photo aérienne, cadastre, noms, altitudes ; mémorisés), zoom + / −, « Tout voir », « Ma position », barre d'échelle, mention « © swisstopo ».
    - Dessin : contour B1 → B2 → … fermé (ambre), lignes de haut de talus (rouge), points C (bleu clair), noms en blanc bordé de noir, position actuelle (bleu ; grise si l'inclinaison n'est pas prête).
    - Gestes : déplacement au doigt, zoom à deux doigts ou double toucher, toucher un point → suppression (avec confirmation).
    - Tuiles en mémoire (40 Mo) + cache internet sur le téléphone (50 Mo, `HttpResponseCache`) ; pas de vrai mode hors ligne (hors V1).
-5. Triangulation et calcul du volume (même méthode que l'appli topo : bas de talus = contour et surface de référence ; bas et hauts de talus = lignes de rupture), comparé à Mensura (tolérance 0,5 %).
+5. Triangulation et calcul du volume (même méthode que l'appli topo : bas de talus = contour et surface de référence ; bas et hauts de talus = lignes de rupture), comparé à Mensura (tolérance 0,5 %). ← **fait (version 0.5), en attente du test terrain**
+   - Méthode = V1 « mode A » (validée sur Mensura) : dessus = Delaunay contraint de tous les points (contour B fermé + chaque ligne H), triangles dans le contour ; base = Delaunay contraint des points B ; superposition exacte des triangles (`noyau/.../volume/`).
+   - La V1 utilise les bibliothèques JS Delaunator + Constrainautor ; ici **triangulation contrainte écrite en Kotlin, sans bibliothèque** (Bowyer-Watson + bascule des arêtes croisées + Lawson). Résultat identique à la V1 sur le levé du 20/05/2026 (`exemples/stock_export_2026-05-20.txt`, copié de app-topo) : 1636.1971 / 648.9788 / 372.2010 m³, mêmes surfaces et mêmes nombres de triangles (77/20, 45/18, 50/21) ; Mensura 1636.197 / 648.979 / 372.201 (test `VolumeReferenceTest`).
+   - Décisions (21.10.2026) : lignes H **ouvertes ou fermées au choix** (bouton par ligne) ; volume calculé à la demande (« Calculer le volume » = validation du levé) et effacé dès qu'un point change ; triangles affichés sur la carte (calque « Triangles »).
+   - Aussi dans la 0.5 (demandes de l'utilisateur) : **nouveau logo** (canne GNSS plantée dans un tas vert, fond blanc, pour ne plus ressembler à la V1) ; **toucher un point** → changer le rôle (prochain nom libre du groupe), renommer, modifier E/N/H à la main (point marqué « modifié »), supprimer ; **export TXT** des points d'un stock (tabulations, nom/E/N/H, comme stock_export.txt) en avance sur l'étape 7, pour contrôler dans Mensura.
 6. Vues de contrôle : 2D, 3D, courbes de niveau, tranches de couleur.
 7. Exports PDF, DXF, Excel et synchronisation Google Drive.
 
