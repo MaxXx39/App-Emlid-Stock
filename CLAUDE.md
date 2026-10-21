@@ -55,7 +55,10 @@ Appli Android **native en Kotlin** pour lever des stocks de matériaux avec un G
 
 L'utilisateur veut **toutes** les fonctions de l'appli topo V1 (dépôt `app-topo`) dans la V2. La V1 reste l'outil de **bureau** (la V2 Android ne tourne pas sur Windows), avec une **passerelle** : la V2 exporte un fichier projet que la V1 ouvre (`.topo.json`), et inversement. Ordre choisi : finir d'abord les étapes 6 et 7 du cahier des charges, puis :
 
-8. Importer des points (CSV Emlid, TXT) comme un stock, avec calcul du volume.
+8. Importer des points (CSV Emlid, TXT) comme un stock, avec calcul du volume. ← **fait (version 0.8), en attente du test**
+   - Décisions (21.10.2026) : rôles donnés par **plages de noms** comme la V1 (« b100 à b116 » ; plusieurs lignes H séparées par « ; »), avec les **séries détectées** proposées en un toucher ; **noms d'origine gardés** (les points ajoutés ensuite prennent les noms B…, H…, C… libres) ; **plusieurs stocks par fichier** (le fichier est lu une fois, chaque stock garde son contour, ses lignes et les autres points du fichier situés dans son contour, en C).
+   - Code repris de la V1 avec ses tests : `noyau/.../importation/LecturePoints.kt` (import-points.js), `Noms.kt` (noms.js), `StockImporte.kt` ; écran `VueImport` (accueil → « Importer des points… »). Points importés : qualité 0, « importé : fichier » (pas de position GNSS d'origine).
+   - Test de bout en bout : le levé du 20/05 (`exemples/stock_2026-05-20.csv` et `stock_export_2026-05-20.txt`, copiés de app-topo) importé en 3 stocks redonne 1636.197 / 648.979 / 372.201 m³.
 9. Base = autre surface (mode B) : surfaces importées (LandXML Mensura, DXF faces 3D) ou levées (terrain naturel) ; surfaces libres (sans contour, triangles supprimés au doigt).
 10. Comparer deux levés (même stock à deux dates) : volume ajouté / enlevé, sur tout ou dans un contour.
 11. Photos du stock avec légende, imprimées dans le PDF.

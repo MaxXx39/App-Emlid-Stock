@@ -2,7 +2,7 @@
 
 Appli Android de levé de stocks en RTK avec un GNSS Emlid Reach RX2.
 
-**Version actuelle : 0.7 - exports** (étapes 3 à 7 du cahier des charges) : chantiers, stocks, trois modes de levé (bas de talus B1…, haut de talus H1-1…, points caractéristiques C1…), prise de point en **MN95 / altitude RAN95 (LHN95)**, refusée tant que le RTK n'est pas fixe ou que l'inclinaison n'est pas prête. Carte avec photo aérienne swisstopo, calcul du volume (même méthode que l'appli topo, contrôlée sur Mensura), exports PDF / CSV / DXF / LandXML / TXT et fichier projet pour l'appli topo (V1), vues de contrôle 2D (courbes de niveau, couleurs, remblai / déblai) et 3D.
+**Version actuelle : 0.8 - import de points** (étapes 3 à 8) : chantiers, stocks, trois modes de levé (bas de talus B1…, haut de talus H1-1…, points caractéristiques C1…), prise de point en **MN95 / altitude RAN95 (LHN95)**, refusée tant que le RTK n'est pas fixe ou que l'inclinaison n'est pas prête. Carte avec photo aérienne swisstopo, calcul du volume (même méthode que l'appli topo, contrôlée sur Mensura), exports PDF / CSV / DXF / LandXML / TXT et fichier projet pour l'appli topo (V1), import de fichiers de points (CSV Emlid, TXT), vues de contrôle 2D (courbes de niveau, couleurs, remblai / déblai) et 3D.
 
 ## Installer l'appli sur le téléphone
 
@@ -36,7 +36,8 @@ Pour une mise à jour : refaire les étapes 1 à 3, puis **Mettre à jour**. Les
 10. **Volume** : « Calculer le volume » quand le levé est fini → remblai, déblai, surface, nombre de triangles ; les triangles s'affichent sur la carte. Le contour = points B dans l'ordre, la base = les points B, les lignes H = lignes de rupture.
 11. **Vues de contrôle** : après le calcul, « Vues de contrôle (2D / 3D) ». 2D : « Calques » → courbes de niveau, couleurs selon l'altitude, remblai (rouge) / déblai (jaune), altitudes des points. 3D : glisser pour tourner, pincer pour zoomer, ×1 / ×2 / ×5 pour exagérer les hauteurs, double toucher pour revenir au départ.
 12. **Exporter** : dans un stock « Exporter… » (ce stock), à l'accueil « Exporter le chantier… » (tous les stocks). Au choix : **PDF** (plan à l'échelle, volumes, cartouche ; calques au choix), **CSV** pour Excel (volumes et points), **DXF** (AutoCAD, Mensura), **LandXML**, **TXT** (nom, E, N, H) et **fichier projet pour l'appli topo (V1)** à ouvrir au bureau. Android demande où enregistrer : choisir **Drive** pour l'avoir sur l'ordinateur.
-13. Un stock se reprend plus tard : il suffit de le toucher dans la liste ; la numérotation continue.
+13. **Importer** (accueil → « Importer des points… ») : choisir un fichier CSV Emlid ou TXT (nom, E, N, H). L'appli affiche le nombre de points lus et les lignes illisibles. Pour chaque stock du fichier : nom, **contour** (ex. « b100 à b116 »), **lignes de haut de talus** (ex. « h100 à h114 », plusieurs lignes séparées par « ; ») — ou toucher une série proposée — puis « Créer le stock ». Les autres points dans le contour deviennent des points caractéristiques. Les noms d'origine sont gardés.
+14. Un stock se reprend plus tard : il suffit de le toucher dans la liste ; la numérotation continue.
 
 Les levés sont enregistrés sur le téléphone à chaque point.
 

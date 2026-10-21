@@ -129,6 +129,8 @@ class EcranPrincipal : Activity() {
 
     fun afficherDiagnostic() = afficher(VueDiagnostic(this))
 
+    fun afficherImport(nomFichier: String, texte: String) = afficher(VueImport(this, nomFichier, texte))
+
     private fun afficher(vue: Vue) {
         vueActuelle = vue
         contenu.removeAllViews()
@@ -375,10 +377,44 @@ class EcranPrincipal : Activity() {
         startActivityForResult(intention, CODE_EXPORTER)
     }
 
+    // Ce qu'il faut faire du fichier que l'utilisateur va choisir (import).
+    private var quandFichierOuvert: ((nomFichier: String, texte: String) -> Unit)? = null
+
+    /** Demande à l'utilisateur de choisir un fichier (Téléchargements, Google Drive…), puis le lit en texte. */
+    @Suppress("DEPRECATION")
+    fun ouvrirFichierTexte(action: (nomFichier: String, texte: String) -> Unit) {
+        quandFichierOuvert = action
+        val intention = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "*/*"
+        }
+        startActivityForResult(intention, CODE_OUVRIR)
+    }
+
+    /** Nom affiché d'un fichier choisi (ex. « stock.csv »). */
+    private fun nomDuFichier(adresse: android.net.Uri): String =
+        contentResolver.query(adresse, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { curseur ->
+            if (curseur.moveToFirst()) curseur.getString(0) else null
+        } ?: adresse.lastPathSegment ?: "fichier"
+
     @Deprecated("Méthode Android classique, suffisante ici")
     override fun onActivityResult(code: Int, resultat: Int, donnees: Intent?) {
         @Suppress("DEPRECATION")
         super.onActivityResult(code, resultat, donnees)
+        if (code == CODE_OUVRIR) {
+            val action = quandFichierOuvert
+            quandFichierOuvert = null
+            val adresse = donnees?.data
+            if (resultat != RESULT_OK || adresse == null || action == null) return
+            try {
+                val octets = contentResolver.openInputStream(adresse)?.use { it.readBytes() } ?: error("fichier impossible à ouvrir")
+                if (octets.size > 20_000_000) error("fichier trop gros (plus de 20 Mo)")
+                action(nomDuFichier(adresse), String(octets, Charsets.UTF_8))
+            } catch (erreur: Exception) {
+                message("Lecture impossible : ${erreur.message}")
+            }
+            return
+        }
         if (code == CODE_EXPORTER) {
             val contenu = contenuAExporter
             contenuAExporter = null
@@ -436,6 +472,7 @@ class EcranPrincipal : Activity() {
         private const val CODE_PERMISSIONS = 1
         private const val CODE_ENREGISTRER = 2
         private const val CODE_EXPORTER = 3
+        private const val CODE_OUVRIR = 4
         private const val CLE_DERNIER_RECEPTEUR = "dernier_recepteur"
         private const val CLE_HAUTEUR_CANNE = "hauteur_canne"
     }
