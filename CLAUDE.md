@@ -24,12 +24,16 @@ Appli Android **native en Kotlin** pour lever des stocks de matériaux avec un G
 
 1. **Prototype de test terrain** : affiche position, statut RTK et message ETC ; sert à vérifier les 5 points ci-dessous. ← **fait (version 0.1), testé le 20.10.2026**
 2. Réception de la position et conversion en MN95 avec altitudes RAN95 (voir § 5). ← **fait (version 0.2), validé sur le terrain le 21.10.2026**
-3. Chantiers, stocks, trois modes de levé (bas de talus B1…, haut de talus H1-1…, points caractéristiques C1…), bouton de prise de point bloqué hors fix **ou inclinaison pas prête**, annulation. ← **fait (version 0.3), en attente du test terrain**
+3. Chantiers, stocks, trois modes de levé (bas de talus B1…, haut de talus H1-1…, points caractéristiques C1…), bouton de prise de point bloqué hors fix **ou inclinaison pas prête**, annulation. ← **fait (version 0.3), validé sur le terrain le 21.10.2026** (2 stocks levés ; RTK fixe / flottant et blocage par l'inclinaison OK ; le 2e stock levé avec Emlid Flow « fermé » sans aucune différence : Emlid Flow continue probablement en arrière-plan à envoyer les corrections, à confirmer)
    - Décisions (21.10.2026) : points caractéristiques **C1, C2…** ; nom de stock proposé **« date chantier numéro »** (ex. « 2026-10-21 Gravière 1 », modifiable) ; numéro suivant = plus grand existant + 1 dans le groupe ; « Nouvelle ligne » ne crée pas de ligne vide.
    - Bandeaux toujours visibles : « RTK » et « Inclinaison PRÊTE / NON PRÊTE » (position grisée « antenne, pas le bout de canne » si pas prête).
    - Suppression d'un point : pour l'instant en touchant le point dans la liste (sur la carte à l'étape 4).
    - Données : fichier `leves.json` dans le dossier privé de l'appli (classe `Depot`, écriture via fichier temporaire). Pas encore d'export ni de synchro (étape 7).
-4. Carte 2D en cours de levé avec fond swisstopo (SWISSIMAGE).
+4. Carte 2D en cours de levé avec fond swisstopo (SWISSIMAGE). ← **fait (version 0.4), en attente du test terrain**
+   - Inspirée du plan de l'appli topo V1 (demande de l'utilisateur) : tuiles WMTS swisstopo directement en MN95 (`noyau/.../carte/Fond.kt`, repris de `app-topo/src/plan/fond.js` avec ses tests), bouton « Calques » (photo aérienne, cadastre, noms, altitudes ; mémorisés), zoom + / −, « Tout voir », « Ma position », barre d'échelle, mention « © swisstopo ».
+   - Dessin : contour B1 → B2 → … fermé (ambre), lignes de haut de talus (rouge), points C (bleu clair), noms en blanc bordé de noir, position actuelle (bleu ; grise si l'inclinaison n'est pas prête).
+   - Gestes : déplacement au doigt, zoom à deux doigts ou double toucher, toucher un point → suppression (avec confirmation).
+   - Tuiles en mémoire (40 Mo) + cache internet sur le téléphone (50 Mo, `HttpResponseCache`) ; pas de vrai mode hors ligne (hors V1).
 5. Triangulation et calcul du volume (même méthode que l'appli topo : bas de talus = contour et surface de référence ; bas et hauts de talus = lignes de rupture), comparé à Mensura (tolérance 0,5 %).
 6. Vues de contrôle : 2D, 3D, courbes de niveau, tranches de couleur.
 7. Exports PDF, DXF, Excel et synchronisation Google Drive.
@@ -103,7 +107,7 @@ Méthode (validée par l'utilisateur, code dans `noyau/.../coordonnees/`) :
 - Deux modules Gradle :
   - `noyau/` : calculs en Kotlin pur (lecture NMEA, conversion MN95 / RAN95 avec la grille `src/main/resources/geoide/chgeo2004_lhn95.grille`, plus tard volumes), **testés automatiquement** (`./gradlew :noyau:test`).
   - `noyau/.../leve/` : modèle des chantiers, stocks et points, nommage, règle de prise de point (`autoriserPriseDePoint`).
-  - `app/` : l'appli Android : une seule activité `EcranPrincipal` (bandeaux RTK / inclinaison) et trois vues `VueAccueil`, `VueLeve`, `VueDiagnostic` ; `EtatRecepteur` (données reçues), `Depot` (enregistrement), `RecepteurBluetooth` (SPP).
+  - `app/` : l'appli Android : une seule activité `EcranPrincipal` (bandeaux RTK / inclinaison) et trois vues `VueAccueil`, `VueLeve` (avec la carte `VueCarte` / `CarteAvecBoutons`, tuiles par `ChargeurTuiles`), `VueDiagnostic` ; `EtatRecepteur` (données reçues), `Depot` (enregistrement), `RecepteurBluetooth` (SPP).
 - Fabrication par **GitHub Actions** (`.github/workflows/apk.yml`) : tests + APK à chaque envoi ; sur `main`, l'APK est publié dans la release « Dernière version » (tag `derniere-version`).
 - Signature : clé fixe `app/cle-signature.jks` (mot de passe dans `app/build.gradle.kts`), pour que les mises à jour s'installent par-dessus. Clé d'usage personnel uniquement.
 - Dans le cloud Claude Code, `dl.google.com` est bloqué : le SDK Android n'est pas disponible localement. On teste `noyau` localement (miroir Maven `maven-central.storage-download.googleapis.com` si Maven Central répond 429) et on peut vérifier la compilation du code Android contre `org.robolectric:android-all` ; la vraie fabrication de l'APK se fait dans GitHub Actions.

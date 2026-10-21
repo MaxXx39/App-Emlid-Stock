@@ -2,7 +2,7 @@
 
 Appli Android de levé de stocks en RTK avec un GNSS Emlid Reach RX2.
 
-**Version actuelle : 0.3 - levé des stocks** (étape 3 du cahier des charges) : chantiers, stocks, trois modes de levé (bas de talus B1…, haut de talus H1-1…, points caractéristiques C1…), prise de point en **MN95 / altitude RAN95 (LHN95)**, refusée tant que le RTK n'est pas fixe ou que l'inclinaison n'est pas prête. Pas encore de carte, de volume ni d'export.
+**Version actuelle : 0.4 - carte du levé** (étapes 3 et 4 du cahier des charges) : chantiers, stocks, trois modes de levé (bas de talus B1…, haut de talus H1-1…, points caractéristiques C1…), prise de point en **MN95 / altitude RAN95 (LHN95)**, refusée tant que le RTK n'est pas fixe ou que l'inclinaison n'est pas prête. Carte avec photo aérienne swisstopo. Pas encore de volume ni d'export.
 
 ## Installer l'appli sur le téléphone
 
@@ -30,8 +30,9 @@ Pour une mise à jour : refaire les étapes 1 à 3, puis **Mettre à jour**. Les
 4. « Nouveau chantier » (une fois), puis « + Nouveau stock » : le nom proposé (date chantier numéro) peut être modifié.
 5. Choisir le mode : **Bas de talus** (B1, B2…), **Haut de talus** (H1-1, H1-2… ; « Nouvelle ligne » passe à H2-1), **Point caractéristique** (C1, C2…).
 6. **PRENDRE LE POINT** : le point est pris à l'instant du clic. Le bouton est bloqué tant que le RTK n'est pas fixe ou que l'inclinaison n'est pas prête.
-7. « Annuler le dernier point » efface le dernier point ; toucher un point dans la liste permet de le supprimer.
-8. Un stock se reprend plus tard : il suffit de le toucher dans la liste ; la numérotation continue.
+7. « Annuler le dernier point » efface le dernier point ; toucher un point dans la liste **ou sur la carte** permet de le supprimer.
+8. **Carte** : déplacer au doigt, zoomer à deux doigts (ou double toucher), boutons + / −, « Tout voir », « Ma position ». « Calques » : photo aérienne, cadastre, noms, altitudes. La photo aérienne demande une connexion internet.
+9. Un stock se reprend plus tard : il suffit de le toucher dans la liste ; la numérotation continue.
 
 Les levés sont enregistrés sur le téléphone à chaque point. (Export et synchronisation : plus tard.)
 
