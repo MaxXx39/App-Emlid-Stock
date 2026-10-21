@@ -42,6 +42,18 @@ Appli Android **native en Kotlin** pour lever des stocks de matériaux avec un G
 6. Vues de contrôle : 2D, 3D, courbes de niveau, tranches de couleur.
 7. Exports PDF, DXF, Excel et synchronisation Google Drive.
 
+### Après le cahier des charges : tout centraliser dans la V2 (décision du 21.10.2026)
+
+L'utilisateur veut **toutes** les fonctions de l'appli topo V1 (dépôt `app-topo`) dans la V2. La V1 reste l'outil de **bureau** (la V2 Android ne tourne pas sur Windows), avec une **passerelle** : la V2 exporte un fichier projet que la V1 ouvre (`.topo.json`), et inversement. Ordre choisi : finir d'abord les étapes 6 et 7 du cahier des charges, puis :
+
+8. Importer des points (CSV Emlid, TXT) comme un stock, avec calcul du volume.
+9. Base = autre surface (mode B) : surfaces importées (LandXML Mensura, DXF faces 3D) ou levées (terrain naturel) ; surfaces libres (sans contour, triangles supprimés au doigt).
+10. Comparer deux levés (même stock à deux dates) : volume ajouté / enlevé, sur tout ou dans un contour.
+11. Photos du stock avec légende, imprimées dans le PDF.
+12. Annuler / Rétablir et bulles d'aide activables.
+
+L'étape 6 reprend aussi les vues de la V1 (couleurs selon l'altitude, courbes de niveau, remblai rouge / déblai jaune par paliers) ; l'étape 7 les exports de la V1 (PDF avec cartouche et calques, CSV, DXF R12, LandXML) en plus d'Excel et Google Drive, et la passerelle V1. Toujours reprendre les formules et les tests de la V1 (`app-topo/src/topo`, `app-topo/tests`) plutôt que de réinventer.
+
 ## 4. Points à vérifier sur le terrain (étape 1)
 
 | Point | Plan B si ça ne marche pas |
