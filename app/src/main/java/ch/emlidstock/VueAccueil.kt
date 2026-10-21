@@ -39,6 +39,7 @@ class VueAccueil(private val ecran: EcranPrincipal) : Vue {
 
         colonne.addView(ui.titre("Stocks"))
         colonne.addView(ui.bouton("+ Nouveau stock") { creerStock() })
+        colonne.addView(ui.bouton("Importer des points (CSV Emlid, TXT)…") { importer() })
         colonne.addView(listeStocks)
 
         colonne.addView(ui.titre("Récepteur"))
@@ -118,6 +119,15 @@ class VueAccueil(private val ecran: EcranPrincipal) : Vue {
                 remplir()
             }
             .show()
+    }
+
+    /** Choix d'un fichier de points, puis écran d'import (création des stocks par plages de noms). */
+    private fun importer() {
+        if (depot.chantierActif() == null) {
+            ecran.message("Créez d'abord un chantier.")
+            return
+        }
+        ecran.ouvrirFichierTexte { nomFichier, texte -> ecran.afficherImport(nomFichier, texte) }
     }
 
     /** Exporte tous les stocks du chantier actif (volumes recalculés). */
