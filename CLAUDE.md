@@ -24,7 +24,7 @@ Appli Android **native en Kotlin** pour lever des stocks de matériaux avec un G
 
 1. **Prototype de test terrain** : affiche position, statut RTK et message ETC ; sert à vérifier les 5 points ci-dessous. ← **fait (version 0.1), testé le 20.10.2026**
 2. Réception de la position et conversion en MN95 avec altitudes RAN95 (voir § 5). ← **fait (version 0.2), validé sur le terrain le 21.10.2026**
-3. Chantiers, stocks, trois modes de levé (bas de talus B1…, haut de talus H1-1…, points caractéristiques C1…), bouton de prise de point bloqué hors fix **ou inclinaison pas prête**, annulation. ← **fait (version 0.3), en attente du test terrain**
+3. Chantiers, stocks, trois modes de levé (bas de talus B1…, haut de talus H1-1…, points caractéristiques C1…), bouton de prise de point bloqué hors fix **ou inclinaison pas prête**, annulation. ← **fait (version 0.3), validé sur le terrain le 21.10.2026** (2 stocks levés ; RTK fixe / flottant et blocage par l'inclinaison OK ; le 2e stock levé avec Emlid Flow « fermé » sans aucune différence : Emlid Flow continue probablement en arrière-plan à envoyer les corrections, à confirmer)
    - Décisions (21.10.2026) : points caractéristiques **C1, C2…** ; nom de stock proposé **« date chantier numéro »** (ex. « 2026-10-21 Gravière 1 », modifiable) ; numéro suivant = plus grand existant + 1 dans le groupe ; « Nouvelle ligne » ne crée pas de ligne vide.
    - Bandeaux toujours visibles : « RTK » et « Inclinaison PRÊTE / NON PRÊTE » (position grisée « antenne, pas le bout de canne » si pas prête).
    - Suppression d'un point : pour l'instant en touchant le point dans la liste (sur la carte à l'étape 4).
