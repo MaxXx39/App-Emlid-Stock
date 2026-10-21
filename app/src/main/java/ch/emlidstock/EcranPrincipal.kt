@@ -27,6 +27,8 @@ import android.widget.TextView
 import android.widget.Toast
 import ch.emlidstock.noyau.leve.Stock
 import ch.emlidstock.noyau.nmea.libelleQualite
+import ch.emlidstock.noyau.surface.ResultatSurface
+import ch.emlidstock.noyau.surface.SurfaceImportee
 import ch.emlidstock.noyau.volume.ResultatVolumeStock
 import java.io.File
 import java.text.SimpleDateFormat
@@ -123,9 +125,12 @@ class EcranPrincipal : Activity() {
 
     fun afficherAccueil() = afficher(VueAccueil(this))
 
-    fun afficherLeve(stock: Stock, volume: ResultatVolumeStock? = null) = afficher(VueLeve(this, stock, volume))
+    fun afficherLeve(stock: Stock, volume: ResultatVolumeStock? = null, surface: ResultatSurface? = null) =
+        afficher(VueLeve(this, stock, volume, surface))
 
-    fun afficherControle(stock: Stock, volume: ResultatVolumeStock) = afficher(VueControle(this, stock, volume))
+    fun afficherControle(sujet: SujetControle) = afficher(VueControle(this, sujet))
+
+    fun afficherSurfaceImportee(surface: SurfaceImportee) = afficher(VueSurfaceImportee(this, surface))
 
     fun afficherDiagnostic() = afficher(VueDiagnostic(this))
 
@@ -340,6 +345,16 @@ class EcranPrincipal : Activity() {
     // =====================================================================
     // Enregistrement des levés et du journal
     // =====================================================================
+
+    /** Enregistre les surfaces importées ; affiche un message si l'écriture échoue. */
+    fun enregistrerSurfaces(): Boolean =
+        try {
+            depot.enregistrerSurfaces()
+            true
+        } catch (erreur: Exception) {
+            message("ATTENTION : enregistrement des surfaces impossible (${erreur.message})")
+            false
+        }
 
     /** Enregistre chantiers et stocks ; affiche un message si l'écriture échoue. */
     fun enregistrerLeves(): Boolean =

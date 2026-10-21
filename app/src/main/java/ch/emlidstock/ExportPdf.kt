@@ -107,7 +107,7 @@ class ExportPdf(private val stocks: List<StockExporte>, private val cartouche: C
     /** Plan à l'échelle normalisée qui fait tout tenir. Renvoie le dénominateur de l'échelle. */
     private fun dessinerPlan(toile: Canvas): Int {
         val calcules = stocks.filter { it.volumeValable }
-        val tousTriangles = calcules.flatMap { it.resultat!!.trianglesDessus }
+        val tousTriangles = stocks.flatMap { it.triangles }
         val coordonnees = stocks.flatMap { s -> s.points.map { PointPlan(it.est, it.nord) } } +
             tousTriangles.flatMap { t -> t.sommets.map { PointPlan(it.est, it.nord) } }
         if (coordonnees.isEmpty()) return 500
@@ -319,6 +319,8 @@ class ExportPdf(private val stocks: List<StockExporte>, private val cartouche: C
                 toile.drawText(trois(r.surfacePlan), colonnes[0], y, texte(7f, alignement = Paint.Align.RIGHT))
                 toile.drawText(trois(r.remblai), colonnes[1], y, texte(7f, gras = true, alignement = Paint.Align.RIGHT))
                 toile.drawText(trois(r.deblai), colonnes[2], y, texte(7f, alignement = Paint.Align.RIGHT))
+            } else if (s.estSurface) {
+                toile.drawText("surface (sans volume)", fin - 1, y, texte(6.5f, GRIS, alignement = Paint.Align.RIGHT))
             } else {
                 toile.drawText("pas de volume", fin - 1, y, texte(6.5f, GRIS, alignement = Paint.Align.RIGHT))
             }
@@ -336,7 +338,10 @@ class ExportPdf(private val stocks: List<StockExporte>, private val cartouche: C
 
         // Remarques
         y += 2
-        val remarques = mutableListOf("Base : points du bas de talus (B). Contour = B dans l'ordre, lignes de rupture = hauts de talus (H).")
+        val remarques = mutableListOf("Contour = bas de talus (B) dans l'ordre, lignes de rupture = hauts de talus (H).")
+        val (modeA, modeB) = calcules.partition { it.resultat!!.nomBase == null }
+        if (modeA.isNotEmpty()) remarques.add("Base${if (modeB.isEmpty()) "" else " de ${modeA.joinToString(", ") { it.nom }}"} : points du bas de talus (B).")
+        modeB.forEach { remarques.add("Base de ${it.nom} : surface « ${it.resultat!!.nomBase} ».") }
         calcules.filter { it.resultat!!.surfaceNonCouverte > 0 }.forEach {
             remarques.add("Attention ${it.nom} : ${trois(it.resultat!!.surfaceNonCouverte)} m² non couverts par la base.")
         }

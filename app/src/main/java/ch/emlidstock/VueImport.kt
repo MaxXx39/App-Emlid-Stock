@@ -17,7 +17,9 @@ import ch.emlidstock.noyau.importation.lireListeDeNoms
 import ch.emlidstock.noyau.importation.lirePoints
 import ch.emlidstock.noyau.leve.ModeLeve
 import ch.emlidstock.noyau.leve.PointLeve
+import ch.emlidstock.noyau.leve.TypeLeve
 import ch.emlidstock.noyau.leve.nomStockParDefaut
+import ch.emlidstock.noyau.surface.calculerSurfaceLevee
 import ch.emlidstock.noyau.volume.calculerVolumeStock
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -29,6 +31,8 @@ import java.util.UUID
  * autant de stocks que voulu, chacun avec ses plages de noms (comme dans l'appli topo V1) :
  * contour « b100 à b116 », lignes de haut de talus « h100 à h114 » (plusieurs lignes séparées par « ; »).
  * Les autres points du fichier situés dans le contour deviennent des points caractéristiques.
+ * On peut aussi créer une surface (terrain naturel…, étape 9) : contour facultatif ; sans contour,
+ * tous les points du fichier sont gardés.
  */
 class VueImport(private val ecran: EcranPrincipal, private val nomFichier: String, texte: String) : Vue {
 
@@ -66,15 +70,16 @@ class VueImport(private val ecran: EcranPrincipal, private val nomFichier: Strin
                 colonne.addView(ui.bouton("$texteSerie  (${serie.size} points)") { utiliserSerie(texteSerie) })
             }
 
-            colonne.addView(ui.titre("Nouveau stock"))
-            colonne.addView(ui.texte(13f).apply { text = "Nom du stock" })
+            colonne.addView(ui.titre("Nouveau stock ou nouvelle surface"))
+            colonne.addView(ui.texte(13f).apply { text = "Nom" })
             colonne.addView(champNom)
-            colonne.addView(ui.texte(13f).apply { text = "Contour = bas de talus, dans l'ordre (au moins 3 points)" })
+            colonne.addView(ui.texte(13f).apply { text = "Contour = bas de talus, dans l'ordre (au moins 3 points ; facultatif pour une surface)" })
             colonne.addView(champContour)
-            colonne.addView(ui.texte(13f).apply { text = "Lignes de haut de talus (facultatif)" })
+            colonne.addView(ui.texte(13f).apply { text = "Lignes de haut de talus / de rupture (facultatif)" })
             colonne.addView(champLignes)
             colonne.addView(caseFermees)
-            colonne.addView(ui.bouton("Créer le stock") { creerStock() })
+            colonne.addView(ui.bouton("Créer le stock") { creerStock(TypeLeve.STOCK) })
+            colonne.addView(ui.bouton("Créer une surface (terrain naturel…, base de volume)") { creerStock(TypeLeve.SURFACE) })
             colonne.addView(texteCrees)
             colonne.addView(ui.bouton("Terminé") { ecran.afficherAccueil() })
         }
@@ -130,14 +135,14 @@ class VueImport(private val ecran: EcranPrincipal, private val nomFichier: Strin
             .show()
     }
 
-    private fun creerStock() {
+    private fun creerStock(type: TypeLeve) {
         val chantier = ecran.depot.chantierActif() ?: run {
             ecran.message("Créez d'abord un chantier (accueil).")
             return
         }
         val nom = champNom.text.toString().trim()
         if (nom.isEmpty()) {
-            ecran.message("Donnez un nom au stock.")
+            ecran.message("Donnez un nom au stock ou à la surface.")
             return
         }
         val contour = lireListeDeNoms(champContour.text.toString(), noms)
@@ -150,7 +155,7 @@ class VueImport(private val ecran: EcranPrincipal, private val nomFichier: Strin
         }
         val resultat = creerStockImporte(
             UUID.randomUUID().toString(), chantier.id, nom, System.currentTimeMillis(), lecture.points,
-            contour.noms, lignes.map { it.noms to caseFermees.isChecked }, nomFichier,
+            contour.noms, lignes.map { it.noms to caseFermees.isChecked }, nomFichier, type,
         )
         val stock = resultat.stock ?: run {
             message("Stock non créé", resultat.erreur ?: "erreur inconnue")
@@ -158,16 +163,22 @@ class VueImport(private val ecran: EcranPrincipal, private val nomFichier: Strin
         }
         ecran.depot.stocks.add(stock)
         if (!ecran.enregistrerLeves()) return
-        val volume = calculerVolumeStock(stock.points, stock.lignesFermees)
-        val texteVolume = if (volume.erreur == null) "remblai ${nombre(volume.remblai, 3)} m³" else "volume impossible : ${volume.erreur}"
+        val texteVolume = if (type == TypeLeve.SURFACE) {
+            val surface = calculerSurfaceLevee(stock.points, stock.lignesFermees, emptySet())
+            if (surface.erreur == null) "surface : ${surface.triangles.size} triangles" else "surface impossible : ${surface.erreur}"
+        } else {
+            val volume = calculerVolumeStock(stock.points, stock.lignesFermees)
+            if (volume.erreur == null) "remblai ${nombre(volume.remblai, 3)} m³" else "volume impossible : ${volume.erreur}"
+        }
         crees.add("${stock.nom} : B ${stock.nombreDePoints(ModeLeve.BAS_DE_TALUS)}, H ${stock.nombreDePoints(ModeLeve.HAUT_DE_TALUS)}, " +
             "C ${stock.nombreDePoints(ModeLeve.POINT_CARACTERISTIQUE)} — $texteVolume")
-        ecran.journal.ajouter("INFO", "Import $nomFichier : stock ${stock.nom} créé ($texteVolume)")
+        val quoi = if (type == TypeLeve.SURFACE) "surface" else "stock"
+        ecran.journal.ajouter("INFO", "Import $nomFichier : $quoi ${stock.nom} créé ($texteVolume)")
         champContour.setText("")
         champLignes.setText("")
         proposerNom()
         afficherCrees()
-        ecran.message("Stock « ${stock.nom} » créé.")
+        ecran.message(if (type == TypeLeve.SURFACE) "Surface « ${stock.nom} » créée." else "Stock « ${stock.nom} » créé.")
     }
 
     private fun afficherCrees() {

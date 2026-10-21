@@ -12,9 +12,10 @@ import ch.emlidstock.noyau.export.genererCsv
 import ch.emlidstock.noyau.export.genererDxf
 import ch.emlidstock.noyau.leve.Chantier
 import ch.emlidstock.noyau.leve.Stock
+import ch.emlidstock.noyau.leve.TypeLeve
 import ch.emlidstock.noyau.leve.exporterPointsTxt
 import ch.emlidstock.noyau.leve.nomDeFichier
-import ch.emlidstock.noyau.volume.calculerVolumeStock
+import ch.emlidstock.noyau.surface.calculerSurfaceLevee
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -23,13 +24,30 @@ import kotlin.concurrent.thread
 /**
  * Menu « Exporter… » : PDF, CSV (Excel), DXF, LandXML, TXT, fichier projet pour l'appli topo (V1).
  * Le fichier est enregistré là où l'utilisateur le choisit (Téléchargements, Google Drive…).
- * - [stocks] : les stocks à exporter (un seul depuis l'écran de levé, tous ceux du chantier depuis l'accueil) ;
- *   leur volume est recalculé ici.
+ * - [stocks] : les stocks à exporter (un seul depuis l'écran de levé, tous ceux du chantier depuis l'accueil),
+ *   ou une surface levée ; le volume (avec la base choisie) ou la surface est recalculé ici.
  * - [nomBase] : début du nom des fichiers.
+ * - [toutesLesSurfaces] : le fichier projet V1 contient toutes les surfaces du chantier ; sinon seulement
+ *   les surfaces qui servent de base aux stocks exportés.
  */
-class Exports(private val ecran: EcranPrincipal, private val chantier: Chantier, stocks: List<Stock>, private val nomBase: String) {
+class Exports(
+    private val ecran: EcranPrincipal,
+    private val chantier: Chantier,
+    private val stocks: List<Stock>,
+    private val nomBase: String,
+    private val toutesLesSurfaces: Boolean = false,
+) {
 
-    private val exportes = stocks.map { StockExporte(it, calculerVolumeStock(it.points, it.lignesFermees)) }
+    private val surfaces = ecran.depot.surfacesDuChantier(chantier.id)
+    private val exportes = stocks.map { exporte(it) }
+
+    /** Stock avec son volume, ou surface levée avec ses triangles. */
+    private fun exporte(stock: Stock): StockExporte =
+        if (stock.type == TypeLeve.SURFACE) {
+            StockExporte(stock, null, calculerSurfaceLevee(stock.points, stock.lignesFermees, stock.trianglesSupprimes).triangles)
+        } else {
+            StockExporte(stock, surfaces.volume(stock))
+        }
 
     fun proposer() {
         if (exportes.all { it.points.isEmpty() }) {
@@ -56,23 +74,27 @@ class Exports(private val ecran: EcranPrincipal, private val chantier: Chantier,
 
     /** Équidistance des courbes de niveau du DXF : automatique, selon la hauteur des stocks. */
     private fun equidistance(): Double? {
-        val triangles = exportes.filter { it.volumeValable }.flatMap { it.resultat!!.trianglesDessus }
+        val triangles = exportes.flatMap { it.triangles }
         if (triangles.isEmpty()) return null
         val plage = plageAltitudes(triangles)
         return equidistanceAuto(plage.min, plage.max)
     }
 
     private fun exporterLandXml() {
-        val surfaces = exportes.filter { it.volumeValable }.map { it.nom to it.resultat!!.trianglesDessus }
-        if (surfaces.isEmpty()) {
-            ecran.message("Pas de surface : le volume n'a pas pu être calculé (il faut au moins 3 points B).")
+        val tin = exportes.filter { it.triangles.isNotEmpty() }.map { it.nom to it.triangles }
+        if (tin.isEmpty()) {
+            ecran.message("Pas de surface : le calcul n'a pas pu être fait (stock : il faut au moins 3 points B).")
             return
         }
-        enregistrer("xml", "application/xml", ecrireLandXml(surfaces, chantier.nom))
+        enregistrer("xml", "application/xml", ecrireLandXml(tin, chantier.nom))
     }
 
     private fun exporterProjetV1() {
-        val texte = ecrireProjetV1(nomBase, exportes, chantier.affaire, chantier.dessinePar)
+        // Surfaces ajoutées au projet : toutes celles du chantier, ou les bases des stocks exportés.
+        fun utile(id: String) = toutesLesSurfaces || stocks.any { it.baseSurfaceId == id }
+        val levees = surfaces.levees.filter { l -> utile(l.id) && stocks.none { it.id == l.id } }.map { exporte(it) }
+        val importees = surfaces.importees.filter { utile(it.id) }
+        val texte = ecrireProjetV1(nomBase, exportes + levees, chantier.affaire, chantier.dessinePar, importees = importees)
         ecran.exporterFichier(nomDeFichier(nomBase, "topo.json"), "application/json", texte.toByteArray(Charsets.UTF_8))
     }
 
