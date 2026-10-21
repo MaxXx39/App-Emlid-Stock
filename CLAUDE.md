@@ -16,7 +16,7 @@ Ce fichier est lu par Claude Code au début de chaque session. Le cahier des cha
 
 Appli Android **native en Kotlin** pour lever des stocks de matériaux avec un GNSS **Emlid Reach RX2** en RTK et calculer leur volume sur place. Distincte de l'appli topo PWA (dépôt `app-topo`), qui reste un projet à part.
 
-- Position : flux **NMEA Bluetooth** lu directement sur le RX2 (GGA : position du bout de canne, compensée, et statut RTK ; ETC : état de la compensation). Emlid Flow reste ouvert seulement pour envoyer les corrections swipos au RX2. (Le cahier des charges prévoyait la mock location : abandonnée après le test terrain, voir § 4.)
+- Position : flux **NMEA Bluetooth** lu directement sur le RX2, avec le réglage Emlid Flow « Envoyer la position compensée » activé (GGA : position du bout de canne, compensée, **seulement quand ETC est à l'état 30**, et statut RTK ; ETC : état de la compensation). Emlid Flow reste ouvert seulement pour envoyer les corrections swipos au RX2. (Le cahier des charges prévoyait la mock location : abandonnée après le test terrain, voir § 4.)
 - V1 = **mode stock** seulement ; l'architecture doit pouvoir accueillir d'autres modes plus tard (sans les coder).
 - Hors V1 : autres modes de levé, mode hors ligne, moyenne de plusieurs secondes par point.
 
@@ -70,7 +70,15 @@ Sur le point 1 (`exemples/test_bureau_pix4d.csv` : 2509500.921 / 1141119.690 / 4
 - **Plan** : écart d'environ 1 cm → la conversion MN95 est confirmée en conditions réelles.
 - **Hauteur** : la position GGA est **1.96 m plus haute** que le point (environ la hauteur de canne + décalage de l'antenne).
 - **Inclinaison** : même avec ETC à l'état 30, la position GGA bouge comme la tête de canne (jusqu'à 85 cm pour 26°, hauteur qui baisse en cos). **Le GGA reçu en Bluetooth est donc la position de l'antenne, sans hauteur de canne ni compensation.** (Le test n° 1 avait été mal interprété : la canne ne bougeait sans doute pas.)
-- **ETC** : le champ 5 est bien la direction de l'inclinaison (azimut vers lequel la tête de canne part) et le champ 6 l'angle. En calculant `bout = antenne − L × (sin i · sin d, sin i · cos d, cos i)` avec L = 1.962 m, on retrouve le point à 1 à 3 cm près quand la canne est immobile (plus d'écart pendant les mouvements rapides). Calcul fait à titre d'analyse, **pas validé** et pas codé.
+- **ETC** : le champ 5 est bien la direction de l'inclinaison (azimut vers lequel la tête de canne part) et le champ 6 l'angle. En calculant `bout = antenne − L × (sin i · sin d, sin i · cos d, cos i)` avec L = 1.962 m, on retrouve le point à 1 à 3 cm près quand la canne est immobile (plus d'écart pendant les mouvements rapides). Calcul fait à titre d'analyse, **pas validé** et pas codé. Hauteur de canne réglée dans Emlid Flow pendant ce test : 1.85 m ; décalage d'antenne du RX2 selon Emlid : 147.1 mm (L1).
+
+### Résultats du test terrain n° 3 (21.10.2026, `exemples/journal-rx2_2026-10-21_14h04.txt`, `exemples/test_appli_2026-10-21.csv`)
+
+Emlid Flow mis à jour ; réglage activé : **Récepteurs → Intégration à des logiciels externes → « Envoyer la position compensée »**. Point de contrôle : point 1 levé avec le RX2 dans Emlid Flow au même moment (2503979.890 / 1137570.674 / 459.605, hauteur d'antenne 1.995 m).
+
+- **ETC à l'état 30** (compensation prête) : le GGA donne **le bout de canne compensé**. Canne inclinée de 12° à 28° sur le point : écart 0 à 5 cm en plan pendant les mouvements, quelques mm canne immobile, **hauteur à ± 6 mm** (ex. 15.7° : dE +0.2, dN −0.4 cm, dH 0.0). Les 3 « départs » notés : 459.602 / 459.606 / 459.607 m pour 459.605 m.
+- **ETC à l'état 20** (Emlid Flow affiche « CI NON PRÊTE ») : le GGA redevient **la position de l'antenne** (environ 1.99 m plus haut = canne 1.85 + 0.147, et elle bouge avec l'inclinaison). Le passage d'un mode à l'autre est immédiat.
+- **Règle à appliquer** : un point n'est valable que si RTK fixe **et** ETC état 30. Sinon, la position n'est pas celle du bout de canne.
 
 ## 5. Coordonnées et altitudes - méthode validée (20.10.2026)
 
