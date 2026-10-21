@@ -80,6 +80,7 @@ class Depot(private val dossier: File) {
         put("creeLe", s.creeLeMs)
         put("type", s.type.name)
         put("ligneHautActive", s.ligneHautActive)
+        put("lignesFermees", JSONArray().apply { s.lignesFermees.sorted().forEach { put(it) } })
         put("points", JSONArray().apply { s.points.forEach { put(ecrirePoint(it)) } })
     }
 
@@ -95,6 +96,8 @@ class Depot(private val dossier: File) {
             type = TypeLeve.valueOf(o.optString("type", TypeLeve.STOCK.name)),
             points = points,
             ligneHautActive = if (o.has("ligneHautActive")) o.getInt("ligneHautActive") else null,
+            lignesFermees = o.optJSONArray("lignesFermees")?.let { liste -> (0 until liste.length()).map { liste.getInt(it) }.toSet() }
+                ?: emptySet(),
         )
     }
 
@@ -116,6 +119,7 @@ class Depot(private val dossier: File) {
         put("ageCorrections", p.ageCorrectionsS ?: JSONObject.NULL)
         put("station", p.stationReference)
         put("inclinaison", p.inclinaisonDeg ?: JSONObject.NULL)
+        put("modifieALaMain", p.modifieALaMain)
     }
 
     private fun lirePoint(o: JSONObject) = PointLeve(
@@ -136,5 +140,6 @@ class Depot(private val dossier: File) {
         ageCorrectionsS = if (o.isNull("ageCorrections")) null else o.getDouble("ageCorrections"),
         stationReference = o.optString("station"),
         inclinaisonDeg = if (o.isNull("inclinaison")) null else o.getDouble("inclinaison"),
+        modifieALaMain = o.optBoolean("modifieALaMain", false),
     )
 }

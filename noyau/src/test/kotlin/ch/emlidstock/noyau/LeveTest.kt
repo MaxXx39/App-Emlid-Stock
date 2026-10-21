@@ -4,6 +4,8 @@ import ch.emlidstock.noyau.coordonnees.PositionSuisse
 import ch.emlidstock.noyau.leve.ModeLeve
 import ch.emlidstock.noyau.leve.Stock
 import ch.emlidstock.noyau.leve.autoriserPriseDePoint
+import ch.emlidstock.noyau.leve.exporterPointsTxt
+import ch.emlidstock.noyau.leve.nomDeFichier
 import ch.emlidstock.noyau.leve.nomStockParDefaut
 import ch.emlidstock.noyau.leve.preparerPoint
 import ch.emlidstock.noyau.nmea.EtatCompensation
@@ -115,5 +117,58 @@ class LeveTest {
         assertFalse(autoriserPriseDePoint(gga(4), 5_000, pret, 200).autorise)
         assertFalse(autoriserPriseDePoint(null, null, pret, 200).autorise)
         assertFalse(autoriserPriseDePoint(gga(4), 200, pret, 5_000).autorise)
+    }
+}
+
+class EditionEtExportTest {
+
+    private val gga = ch.emlidstock.noyau.nmea.PositionGga("120000.00", 46.38, 6.19, 4, 27, 0.6, 462.0, 47.2, 1.0, "3866")
+    private val pret = EtatCompensation(30, 5.0)
+
+    private fun stockAvec(vararg modes: ModeLeve): Stock {
+        val stock = Stock("s", "c", "Test", 0)
+        modes.forEachIndexed { i, mode ->
+            val position = PositionSuisse(2500000.0 + i, 1100000.0 + 2 * i, 400.0 + i / 10.0)
+            stock.ajouterPoint(preparerPoint(stock, mode, gga, position, pret, 0))
+        }
+        return stock
+    }
+
+    @Test
+    fun `changer le role prend le prochain nom libre`() {
+        val stock = stockAvec(ModeLeve.BAS_DE_TALUS, ModeLeve.BAS_DE_TALUS, ModeLeve.POINT_CARACTERISTIQUE)
+        assertNull(stock.changerRole("B2", ModeLeve.POINT_CARACTERISTIQUE))
+        assertEquals(listOf("B1", "C2", "C1"), stock.points.map { it.nom }) // même place dans la liste
+        assertNull(stock.changerRole("B1", ModeLeve.HAUT_DE_TALUS, ligne = 3))
+        assertEquals("H3-1", stock.points[0].nom)
+        assertEquals(3, stock.points[0].ligne)
+    }
+
+    @Test
+    fun `renommer refuse un nom deja pris et le nommage saute les noms pris`() {
+        val stock = stockAvec(ModeLeve.BAS_DE_TALUS, ModeLeve.POINT_CARACTERISTIQUE)
+        val c1 = stock.point("C1")!!
+        assertEquals("le nom B1 est déjà pris", stock.remplacerPoint("C1", c1.copy(nom = "B1")))
+        assertNull(stock.remplacerPoint("C1", c1.copy(nom = "B2")))
+        assertEquals("B3", stock.prochainNom(ModeLeve.BAS_DE_TALUS)) // B2 est pris par l'ancien C1
+    }
+
+    @Test
+    fun `lignes fermees au choix`() {
+        val stock = stockAvec(ModeLeve.HAUT_DE_TALUS)
+        stock.fermerLigne(1, true)
+        assertEquals(setOf(1), stock.lignesFermees)
+        stock.fermerLigne(1, false)
+        assertTrue(stock.lignesFermees.isEmpty())
+    }
+
+    @Test
+    fun `export TXT comme stock_export`() {
+        val stock = stockAvec(ModeLeve.POINT_CARACTERISTIQUE, ModeLeve.BAS_DE_TALUS, ModeLeve.HAUT_DE_TALUS)
+        assertEquals(
+            "B1\t2500001.000\t1100002.000\t400.100\r\nH1-1\t2500002.000\t1100004.000\t400.200\r\nC1\t2500000.000\t1100000.000\t400.000\r\n",
+            exporterPointsTxt(stock.points),
+        )
+        assertEquals("2026-10-21 Gravière_Gland 1.txt", nomDeFichier("2026-10-21 Gravière/Gland 1", "txt"))
     }
 }

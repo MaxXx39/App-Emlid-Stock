@@ -3,4 +3,6 @@
     <!-- Couleurs Perrin Groupe, comme l'appli topo -->
     <color name="bleu_nuit">#1B2B36</color>
     <color name="ambre">#F6AB07</color>
+    <!-- Fond du logo -->
+    <color name="fond_logo">#FFFFFF</color>
 </resources>

@@ -24,6 +24,7 @@ import ch.emlidstock.noyau.carte.tuilesPourZone
 import ch.emlidstock.noyau.coordonnees.PositionSuisse
 import ch.emlidstock.noyau.leve.ModeLeve
 import ch.emlidstock.noyau.leve.PointLeve
+import ch.emlidstock.noyau.volume.Triangle
 import kotlin.math.hypot
 
 /** Calques de la carte qu'on peut afficher ou masquer (comme dans l'appli topo V1). */
@@ -32,6 +33,7 @@ data class Calques(
     val cadastre: Boolean = false,
     val noms: Boolean = true,
     val altitudes: Boolean = false,
+    val triangles: Boolean = true,
 )
 
 /**
@@ -52,6 +54,16 @@ class VueCarte(private val ecran: EcranPrincipal) : View(ecran) {
     /** Position actuelle ; [positionFiable] = faux si ce n'est pas le bout de canne (dessin gris). */
     var position: PositionSuisse? = null
     var positionFiable = false
+
+    /** Lignes de haut de talus fermées (dernier point relié au premier). */
+    var lignesFermees: Set<Int> = emptySet()
+
+    /** Triangles du dessus du dernier calcul de volume (vide = pas de calcul à jour). */
+    var triangles: List<Triangle> = emptyList()
+        set(valeur) {
+            field = valeur
+            invalidate()
+        }
 
     var calques = Calques()
         set(valeur) {
@@ -143,6 +155,7 @@ class VueCarte(private val ecran: EcranPrincipal) : View(ecran) {
         }
         if (calques.photo) dessinerFond(toile, c, Fond.PHOTO)
         if (calques.cadastre) dessinerFond(toile, c, Fond.CADASTRE)
+        if (calques.triangles) dessinerTriangles(toile, c)
         dessinerLignes(toile, c)
         dessinerPoints(toile, c)
         dessinerPosition(toile, c)
@@ -172,9 +185,24 @@ class VueCarte(private val ecran: EcranPrincipal) : View(ecran) {
         val bas = points.filter { it.mode == ModeLeve.BAS_DE_TALUS }.sortedBy { it.numero }
         dessinerPolyligne(toile, c, bas, fermee = bas.size >= 3, pinceauContour)
         points.filter { it.mode == ModeLeve.HAUT_DE_TALUS }
-            .groupBy { it.ligne }
-            .values
-            .forEach { ligne -> dessinerPolyligne(toile, c, ligne.sortedBy { it.numero }, fermee = false, pinceauLigneHaut) }
+            .groupBy { it.ligne ?: 1 }
+            .forEach { (numero, ligne) ->
+                dessinerPolyligne(toile, c, ligne.sortedBy { it.numero }, fermee = numero in lignesFermees && ligne.size >= 3, pinceauLigneHaut)
+            }
+    }
+
+    private val pinceauTriangle = trait(Color.argb(200, 255, 255, 255), 1f)
+
+    /** Triangles du calcul de volume, en traits fins blancs. */
+    private fun dessinerTriangles(toile: Canvas, c: Cadrage) {
+        for (t in triangles) {
+            val xa = ecranX(c, t.a.est); val ya = ecranY(c, t.a.nord)
+            val xb = ecranX(c, t.b.est); val yb = ecranY(c, t.b.nord)
+            val xc = ecranX(c, t.c.est); val yc = ecranY(c, t.c.nord)
+            toile.drawLine(xa, ya, xb, yb, pinceauTriangle)
+            toile.drawLine(xb, yb, xc, yc, pinceauTriangle)
+            toile.drawLine(xc, yc, xa, ya, pinceauTriangle)
+        }
     }
 
     private fun dessinerPolyligne(toile: Canvas, c: Cadrage, liste: List<PointLeve>, fermee: Boolean, pinceau: Paint) {
@@ -367,14 +395,14 @@ class CarteAvecBoutons(private val ecran: EcranPrincipal) {
     }
 
     private fun choisirCalques() {
-        val titres = arrayOf("Photo aérienne (swisstopo)", "Cadastre", "Noms des points", "Altitudes des points")
+        val titres = arrayOf("Photo aérienne (swisstopo)", "Cadastre", "Noms des points", "Altitudes des points", "Triangles (après calcul du volume)")
         val c = carte.calques
-        val coches = booleanArrayOf(c.photo, c.cadastre, c.noms, c.altitudes)
+        val coches = booleanArrayOf(c.photo, c.cadastre, c.noms, c.altitudes, c.triangles)
         AlertDialog.Builder(ecran)
             .setTitle("Calques")
             .setMultiChoiceItems(titres, coches) { _, i, coche -> coches[i] = coche }
             .setPositiveButton("OK") { _, _ ->
-                val nouveaux = Calques(coches[0], coches[1], coches[2], coches[3])
+                val nouveaux = Calques(coches[0], coches[1], coches[2], coches[3], coches[4])
                 carte.calques = nouveaux
                 enregistrerCalques(nouveaux)
             }
@@ -389,6 +417,7 @@ class CarteAvecBoutons(private val ecran: EcranPrincipal) {
             cadastre = p.getBoolean("calque_cadastre", false),
             noms = p.getBoolean("calque_noms", true),
             altitudes = p.getBoolean("calque_altitudes", false),
+            triangles = p.getBoolean("calque_triangles", true),
         )
     }
 
@@ -398,6 +427,7 @@ class CarteAvecBoutons(private val ecran: EcranPrincipal) {
             .putBoolean("calque_cadastre", c.cadastre)
             .putBoolean("calque_noms", c.noms)
             .putBoolean("calque_altitudes", c.altitudes)
+            .putBoolean("calque_triangles", c.triangles)
             .apply()
     }
 }

@@ -355,10 +355,39 @@ class EcranPrincipal : Activity() {
         startActivityForResult(intention, CODE_ENREGISTRER)
     }
 
+    // Texte en attente d'être écrit dans le fichier choisi par l'utilisateur (export).
+    private var texteAExporter: String? = null
+
+    /** Demande où enregistrer un fichier texte, puis y écrit [contenu]. */
+    @Suppress("DEPRECATION")
+    fun exporterTexte(nomFichier: String, contenu: String) {
+        texteAExporter = contenu
+        val intention = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TITLE, nomFichier)
+        }
+        startActivityForResult(intention, CODE_EXPORTER)
+    }
+
     @Deprecated("Méthode Android classique, suffisante ici")
     override fun onActivityResult(code: Int, resultat: Int, donnees: Intent?) {
         @Suppress("DEPRECATION")
         super.onActivityResult(code, resultat, donnees)
+        if (code == CODE_EXPORTER) {
+            val contenu = texteAExporter
+            texteAExporter = null
+            val adresse = donnees?.data
+            if (resultat != RESULT_OK || adresse == null || contenu == null) return
+            try {
+                val flux = contentResolver.openOutputStream(adresse) ?: error("fichier impossible à ouvrir")
+                flux.bufferedWriter(Charsets.UTF_8).use { it.write(contenu) }
+                message("Fichier exporté.")
+            } catch (erreur: Exception) {
+                message("Échec de l'export : ${erreur.message}")
+            }
+            return
+        }
         if (code != CODE_ENREGISTRER || resultat != RESULT_OK) return
         val adresse = donnees?.data ?: return
         try {
@@ -401,6 +430,7 @@ class EcranPrincipal : Activity() {
         val ROUGE = Color.rgb(198, 40, 40)
         private const val CODE_PERMISSIONS = 1
         private const val CODE_ENREGISTRER = 2
+        private const val CODE_EXPORTER = 3
         private const val CLE_DERNIER_RECEPTEUR = "dernier_recepteur"
         private const val CLE_HAUTEUR_CANNE = "hauteur_canne"
     }

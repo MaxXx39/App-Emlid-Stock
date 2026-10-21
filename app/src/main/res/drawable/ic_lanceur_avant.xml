@@ -1,14 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Icône : un tas (triangle ambre) posé sur le sol -->
+<!-- Logo : une canne GNSS (récepteur en haut) plantée dans un tas vert, fond blanc.
+     Tout reste dans le cercle central de 66 dp, toujours visible quelle que soit la forme d'icône. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- Tas -->
     <path
-        android:fillColor="@color/ambre"
-        android:pathData="M30,70 L50,40 L58,48 L64,42 L78,70 Z" />
+        android:fillColor="#2E7D32"
+        android:pathData="M30,76 L45,58 L52,63 L63,50 L78,76 Z" />
+    <!-- Face éclairée du tas -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M28,72 L80,72 L80,75 L28,75 Z" />
+        android:fillColor="#66BB6A"
+        android:pathData="M45,58 L52,63 L63,50 L57,65 L48,66 Z" />
+    <!-- Sol -->
+    <path
+        android:fillColor="#1B2B36"
+        android:pathData="M28,76 L80,76 L80,79 L28,79 Z" />
+    <!-- Canne -->
+    <path
+        android:fillColor="#37474F"
+        android:pathData="M56.5,40 L59.5,40 L59.5,66 L58,69 L56.5,66 Z" />
+    <!-- Récepteur -->
+    <path
+        android:fillColor="#1B2B36"
+        android:pathData="M58,36 m-9,0 a9,5.5 0 1,0 18,0 a9,5.5 0 1,0 -18,0" />
+    <!-- Bande du récepteur -->
+    <path
+        android:fillColor="#F6AB07"
+        android:pathData="M50,37 L66,37 L66,39.5 L50,39.5 Z" />
+    <!-- Ondes radio -->
+    <path
+        android:strokeColor="#1565C0"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M70,31 Q73,36 70,41 M74,28 Q78.5,36 74,44" />
 </vector>

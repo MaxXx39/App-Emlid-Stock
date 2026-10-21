@@ -39,6 +39,8 @@ data class PointLeve(
     val ageCorrectionsS: Double?,
     val stationReference: String,
     val inclinaisonDeg: Double?,
+    /** Vrai si E, N ou H ont été tapés à la main après la mesure. */
+    val modifieALaMain: Boolean = false,
 )
 
 /** Un chantier : il contient plusieurs stocks. */
