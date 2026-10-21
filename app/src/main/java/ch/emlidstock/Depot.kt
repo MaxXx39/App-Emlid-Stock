@@ -69,9 +69,13 @@ class Depot(private val dossier: File) {
         put("id", c.id)
         put("nom", c.nom)
         put("creeLe", c.creeLeMs)
+        put("affaire", c.affaire)
+        put("dessinePar", c.dessinePar)
     }
 
-    private fun lireChantier(o: JSONObject) = Chantier(o.getString("id"), o.getString("nom"), o.getLong("creeLe"))
+    private fun lireChantier(o: JSONObject) = Chantier(
+        o.getString("id"), o.getString("nom"), o.getLong("creeLe"), o.optString("affaire"), o.optString("dessinePar"),
+    )
 
     private fun ecrireStock(s: Stock) = JSONObject().apply {
         put("id", s.id)

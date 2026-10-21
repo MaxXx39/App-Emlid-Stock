@@ -13,9 +13,7 @@ import android.widget.ScrollView
 import ch.emlidstock.noyau.leve.ModeLeve
 import ch.emlidstock.noyau.leve.PointLeve
 import ch.emlidstock.noyau.leve.Stock
-import ch.emlidstock.noyau.leve.exporterPointsTxt
 import ch.emlidstock.noyau.leve.nomDePoint
-import ch.emlidstock.noyau.leve.nomDeFichier
 import ch.emlidstock.noyau.leve.preparerPoint
 import ch.emlidstock.noyau.volume.ResultatVolumeStock
 import ch.emlidstock.noyau.volume.calculerVolumeStock
@@ -91,7 +89,7 @@ class VueLeve(
 
         colonne.addView(ui.titre("Points levés"))
         colonne.addView(texteCompteurs)
-        colonne.addView(ui.bouton("Exporter les points (TXT)") { exporter() })
+        colonne.addView(ui.bouton("Exporter… (PDF, CSV, DXF, LandXML, TXT, V1)") { exporter() })
         colonne.addView(ui.texte(12f).apply { text = "Toucher un point (ici ou sur la carte) pour le modifier ou le supprimer." })
         colonne.addView(listePoints)
         addView(colonne)
@@ -348,11 +346,8 @@ class VueLeve(
     }
 
     private fun exporter() {
-        if (stock.points.isEmpty()) {
-            ecran.message("Aucun point à exporter.")
-            return
-        }
-        ecran.exporterTexte(nomDeFichier(stock.nom, "txt"), exporterPointsTxt(stock.points))
+        val chantier = ecran.depot.chantiers.firstOrNull { it.id == stock.chantierId } ?: return
+        Exports(ecran, chantier, listOf(stock), stock.nom).proposer()
     }
 
     private fun choisirMode(nouveauMode: ModeLeve) {

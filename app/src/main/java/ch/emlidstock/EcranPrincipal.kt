@@ -360,16 +360,16 @@ class EcranPrincipal : Activity() {
         startActivityForResult(intention, CODE_ENREGISTRER)
     }
 
-    // Texte en attente d'être écrit dans le fichier choisi par l'utilisateur (export).
-    private var texteAExporter: String? = null
+    // Contenu en attente d'être écrit dans le fichier choisi par l'utilisateur (export).
+    private var contenuAExporter: ByteArray? = null
 
-    /** Demande où enregistrer un fichier texte, puis y écrit [contenu]. */
+    /** Demande où enregistrer le fichier (Téléchargements, Google Drive…), puis y écrit [contenu]. */
     @Suppress("DEPRECATION")
-    fun exporterTexte(nomFichier: String, contenu: String) {
-        texteAExporter = contenu
+    fun exporterFichier(nomFichier: String, type: String, contenu: ByteArray) {
+        contenuAExporter = contenu
         val intention = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
-            type = "text/plain"
+            this.type = type
             putExtra(Intent.EXTRA_TITLE, nomFichier)
         }
         startActivityForResult(intention, CODE_EXPORTER)
@@ -380,13 +380,13 @@ class EcranPrincipal : Activity() {
         @Suppress("DEPRECATION")
         super.onActivityResult(code, resultat, donnees)
         if (code == CODE_EXPORTER) {
-            val contenu = texteAExporter
-            texteAExporter = null
+            val contenu = contenuAExporter
+            contenuAExporter = null
             val adresse = donnees?.data
             if (resultat != RESULT_OK || adresse == null || contenu == null) return
             try {
                 val flux = contentResolver.openOutputStream(adresse) ?: error("fichier impossible à ouvrir")
-                flux.bufferedWriter(Charsets.UTF_8).use { it.write(contenu) }
+                flux.use { it.write(contenu) }
                 message("Fichier exporté.")
             } catch (erreur: Exception) {
                 message("Échec de l'export : ${erreur.message}")
