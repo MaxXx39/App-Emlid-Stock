@@ -27,6 +27,7 @@ import android.widget.TextView
 import android.widget.Toast
 import ch.emlidstock.noyau.leve.Stock
 import ch.emlidstock.noyau.nmea.libelleQualite
+import ch.emlidstock.noyau.volume.ResultatVolumeStock
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -106,11 +107,13 @@ class EcranPrincipal : Activity() {
 
     @Deprecated("Méthode Android classique, suffisante ici")
     override fun onBackPressed() {
-        if (vueActuelle is VueAccueil) {
-            @Suppress("DEPRECATION")
-            super.onBackPressed()
-        } else {
-            afficherAccueil()
+        when (val vue = vueActuelle) {
+            is VueAccueil -> {
+                @Suppress("DEPRECATION")
+                super.onBackPressed()
+            }
+            is VueControle -> vue.retour()
+            else -> afficherAccueil()
         }
     }
 
@@ -120,7 +123,9 @@ class EcranPrincipal : Activity() {
 
     fun afficherAccueil() = afficher(VueAccueil(this))
 
-    fun afficherLeve(stock: Stock) = afficher(VueLeve(this, stock))
+    fun afficherLeve(stock: Stock, volume: ResultatVolumeStock? = null) = afficher(VueLeve(this, stock, volume))
+
+    fun afficherControle(stock: Stock, volume: ResultatVolumeStock) = afficher(VueControle(this, stock, volume))
 
     fun afficherDiagnostic() = afficher(VueDiagnostic(this))
 

@@ -34,12 +34,16 @@ Appli Android **native en Kotlin** pour lever des stocks de matériaux avec un G
    - Dessin : contour B1 → B2 → … fermé (ambre), lignes de haut de talus (rouge), points C (bleu clair), noms en blanc bordé de noir, position actuelle (bleu ; grise si l'inclinaison n'est pas prête).
    - Gestes : déplacement au doigt, zoom à deux doigts ou double toucher, toucher un point → suppression (avec confirmation).
    - Tuiles en mémoire (40 Mo) + cache internet sur le téléphone (50 Mo, `HttpResponseCache`) ; pas de vrai mode hors ligne (hors V1).
-5. Triangulation et calcul du volume (même méthode que l'appli topo : bas de talus = contour et surface de référence ; bas et hauts de talus = lignes de rupture), comparé à Mensura (tolérance 0,5 %). ← **fait (version 0.5), en attente du test terrain**
+5. Triangulation et calcul du volume (même méthode que l'appli topo : bas de talus = contour et surface de référence ; bas et hauts de talus = lignes de rupture), comparé à Mensura (tolérance 0,5 %). ← **fait (version 0.5)**, test terrain en attente (comparaison Mensura sur un stock levé avec l'appli)
    - Méthode = V1 « mode A » (validée sur Mensura) : dessus = Delaunay contraint de tous les points (contour B fermé + chaque ligne H), triangles dans le contour ; base = Delaunay contraint des points B ; superposition exacte des triangles (`noyau/.../volume/`).
    - La V1 utilise les bibliothèques JS Delaunator + Constrainautor ; ici **triangulation contrainte écrite en Kotlin, sans bibliothèque** (Bowyer-Watson + bascule des arêtes croisées + Lawson). Résultat identique à la V1 sur le levé du 20/05/2026 (`exemples/stock_export_2026-05-20.txt`, copié de app-topo) : 1636.1971 / 648.9788 / 372.2010 m³, mêmes surfaces et mêmes nombres de triangles (77/20, 45/18, 50/21) ; Mensura 1636.197 / 648.979 / 372.201 (test `VolumeReferenceTest`).
    - Décisions (21.10.2026) : lignes H **ouvertes ou fermées au choix** (bouton par ligne) ; volume calculé à la demande (« Calculer le volume » = validation du levé) et effacé dès qu'un point change ; triangles affichés sur la carte (calque « Triangles »).
    - Aussi dans la 0.5 (demandes de l'utilisateur) : **nouveau logo** (canne GNSS plantée dans un tas vert, fond blanc, pour ne plus ressembler à la V1) ; **toucher un point** → changer le rôle (prochain nom libre du groupe), renommer, modifier E/N/H à la main (point marqué « modifié »), supprimer ; **export TXT** des points d'un stock (tabulations, nom/E/N/H, comme stock_export.txt) en avance sur l'étape 7, pour contrôler dans Mensura.
-6. Vues de contrôle : 2D, 3D, courbes de niveau, tranches de couleur.
+6. Vues de contrôle : 2D, 3D, courbes de niveau, tranches de couleur. ← **fait (version 0.6), en attente du test terrain**
+   - Écran « Contrôle » (`VueControle`), ouvert par « Vues de contrôle (2D / 3D) » après le calcul du volume ; onglets 2D / 3D.
+   - 2D = la carte, avec de nouveaux calques repris de la V1 : couleurs selon l'altitude, courbes de niveau (équidistance auto, maîtresse 1 sur 5), remblai rouge / déblai jaune par paliers (auto), légende. Calculs portés en Kotlin avec les tests de la V1 (`noyau/.../controle/Courbes.kt`, `Couleurs.kt`, test `ControleTest`).
+   - 3D = `Vue3D`, dessinée sans bibliothèque (projection `Projection3D` + tri du plus loin au plus proche + éclairage) : glisser pour tourner / incliner, pincer pour zoomer, exagération ×1 / ×2 / ×5, vue de dessus.
+   - Le calcul de volume garde maintenant les triangles d'écart dessus − base (`trianglesEcart`), comme la V1.
 7. Exports PDF, DXF, Excel et synchronisation Google Drive.
 
 ### Après le cahier des charges : tout centraliser dans la V2 (décision du 21.10.2026)
@@ -123,7 +127,7 @@ Méthode (validée par l'utilisateur, code dans `noyau/.../coordonnees/`) :
 - Deux modules Gradle :
   - `noyau/` : calculs en Kotlin pur (lecture NMEA, conversion MN95 / RAN95 avec la grille `src/main/resources/geoide/chgeo2004_lhn95.grille`, plus tard volumes), **testés automatiquement** (`./gradlew :noyau:test`).
   - `noyau/.../leve/` : modèle des chantiers, stocks et points, nommage, règle de prise de point (`autoriserPriseDePoint`).
-  - `app/` : l'appli Android : une seule activité `EcranPrincipal` (bandeaux RTK / inclinaison) et trois vues `VueAccueil`, `VueLeve` (avec la carte `VueCarte` / `CarteAvecBoutons`, tuiles par `ChargeurTuiles`), `VueDiagnostic` ; `EtatRecepteur` (données reçues), `Depot` (enregistrement), `RecepteurBluetooth` (SPP).
+  - `app/` : l'appli Android : une seule activité `EcranPrincipal` (bandeaux RTK / inclinaison) et les vues `VueAccueil`, `VueLeve` (avec la carte `VueCarte` / `CarteAvecBoutons`, tuiles par `ChargeurTuiles`), `VueControle` (2D / `Vue3D`), `VueDiagnostic` ; `EtatRecepteur` (données reçues), `Depot` (enregistrement), `RecepteurBluetooth` (SPP).
 - Fabrication par **GitHub Actions** (`.github/workflows/apk.yml`) : tests + APK à chaque envoi ; sur `main`, l'APK est publié dans la release « Dernière version » (tag `derniere-version`).
 - Signature : clé fixe `app/cle-signature.jks` (mot de passe dans `app/build.gradle.kts`), pour que les mises à jour s'installent par-dessus. Clé d'usage personnel uniquement.
 - Dans le cloud Claude Code, `dl.google.com` est bloqué : le SDK Android n'est pas disponible localement. On teste `noyau` localement (miroir Maven `maven-central.storage-download.googleapis.com` si Maven Central répond 429) et on peut vérifier la compilation du code Android contre `org.robolectric:android-all` ; la vraie fabrication de l'APK se fait dans GitHub Actions.

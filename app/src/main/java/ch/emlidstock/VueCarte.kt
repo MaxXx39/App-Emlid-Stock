@@ -5,6 +5,7 @@ import android.app.AlertDialog
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.view.GestureDetector
@@ -21,20 +22,52 @@ import ch.emlidstock.noyau.carte.Fond
 import ch.emlidstock.noyau.carte.barreEchelle
 import ch.emlidstock.noyau.carte.niveauDeZoom
 import ch.emlidstock.noyau.carte.tuilesPourZone
+import ch.emlidstock.noyau.controle.Bande
+import ch.emlidstock.noyau.controle.Couleur
+import ch.emlidstock.noyau.controle.Plage
+import ch.emlidstock.noyau.controle.RemblaiDeblai
+import ch.emlidstock.noyau.controle.SegmentCourbe
+import ch.emlidstock.noyau.controle.bandesDeNiveau
+import ch.emlidstock.noyau.controle.couleurAltitude
+import ch.emlidstock.noyau.controle.courbesDeNiveau
+import ch.emlidstock.noyau.controle.equidistanceAuto
+import ch.emlidstock.noyau.controle.plageAltitudes
+import ch.emlidstock.noyau.controle.zonesRemblaiDeblai
 import ch.emlidstock.noyau.coordonnees.PositionSuisse
 import ch.emlidstock.noyau.leve.ModeLeve
 import ch.emlidstock.noyau.leve.PointLeve
+import ch.emlidstock.noyau.volume.PointPlan
 import ch.emlidstock.noyau.volume.Triangle
 import kotlin.math.hypot
 
 /** Calques de la carte qu'on peut afficher ou masquer (comme dans l'appli topo V1). */
-data class Calques(
-    val photo: Boolean = true,
-    val cadastre: Boolean = false,
-    val noms: Boolean = true,
-    val altitudes: Boolean = false,
-    val triangles: Boolean = true,
-)
+data class Calques(val actifs: Set<String> = PAR_DEFAUT) {
+    val photo get() = "photo" in actifs
+    val cadastre get() = "cadastre" in actifs
+    val noms get() = "noms" in actifs
+    val altitudes get() = "altitudes" in actifs
+    val triangles get() = "triangles" in actifs
+    val couleursAltitude get() = "couleursAltitude" in actifs
+    val courbes get() = "courbes" in actifs
+    val remblaiDeblai get() = "remblaiDeblai" in actifs
+
+    /** Un calque : clé (pour l'enregistrer), titre affiché, état au premier lancement. */
+    class Calque(val cle: String, val titre: String, val parDefaut: Boolean)
+
+    companion object {
+        val LISTE = listOf(
+            Calque("photo", "Photo aérienne (swisstopo)", true),
+            Calque("cadastre", "Cadastre", false),
+            Calque("noms", "Noms des points", true),
+            Calque("altitudes", "Altitudes des points", false),
+            Calque("triangles", "Triangles (après calcul du volume)", true),
+            Calque("couleursAltitude", "Couleurs selon l'altitude", false),
+            Calque("courbes", "Courbes de niveau", false),
+            Calque("remblaiDeblai", "Remblai (rouge) / déblai (jaune)", true),
+        )
+        val PAR_DEFAUT = LISTE.filter { it.parDefaut }.map { it.cle }.toSet()
+    }
+}
 
 /**
  * Carte 2D du levé : fond swisstopo (photo aérienne, cadastre), points levés avec leur nom,
@@ -62,8 +95,39 @@ class VueCarte(private val ecran: EcranPrincipal) : View(ecran) {
     var triangles: List<Triangle> = emptyList()
         set(valeur) {
             field = valeur
+            preparerVuesDeControle()
             invalidate()
         }
+
+    /** Triangles d'écart dessus − base du dernier calcul (couleurs remblai / déblai). */
+    var trianglesEcart: List<Triangle> = emptyList()
+        set(valeur) {
+            field = valeur
+            preparerVuesDeControle()
+            invalidate()
+        }
+
+    // Vues de contrôle préparées à partir des triangles (calculées une fois, pas à chaque dessin).
+    private var plage: Plage? = null
+    private var equidistance = 1.0
+    private var bandes: List<Bande> = emptyList()
+    private var courbes: List<SegmentCourbe> = emptyList()
+    private var remblaiDeblai: RemblaiDeblai? = null
+
+    private fun preparerVuesDeControle() {
+        if (triangles.isEmpty()) {
+            plage = null
+            bandes = emptyList()
+            courbes = emptyList()
+        } else {
+            val p = plageAltitudes(triangles)
+            plage = p
+            equidistance = equidistanceAuto(p.min, p.max)
+            bandes = bandesDeNiveau(triangles, equidistance)
+            courbes = courbesDeNiveau(triangles, equidistance)
+        }
+        remblaiDeblai = if (trianglesEcart.isEmpty()) null else zonesRemblaiDeblai(trianglesEcart)
+    }
 
     var calques = Calques()
         set(valeur) {
@@ -155,11 +219,90 @@ class VueCarte(private val ecran: EcranPrincipal) : View(ecran) {
         }
         if (calques.photo) dessinerFond(toile, c, Fond.PHOTO)
         if (calques.cadastre) dessinerFond(toile, c, Fond.CADASTRE)
+        if (calques.remblaiDeblai) dessinerRemblaiDeblai(toile, c)
+        if (calques.couleursAltitude) dessinerCouleursAltitude(toile, c)
         if (calques.triangles) dessinerTriangles(toile, c)
+        if (calques.courbes) dessinerCourbes(toile, c)
         dessinerLignes(toile, c)
         dessinerPoints(toile, c)
         dessinerPosition(toile, c)
         dessinerEchelleEtMentions(toile, c)
+        dessinerLegende(toile)
+    }
+
+    // --- Vues de contrôle : couleurs, courbes, remblai / déblai (reprises de la V1) ---
+
+    private val pinceauZone = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+    private val pinceauCourbe = trait(Color.rgb(90, 50, 20), 1f)
+    private val pinceauCourbeMaitresse = trait(Color.rgb(90, 50, 20), 2f)
+
+    private fun couleurAndroid(couleur: Couleur, opacite: Int = 255) = Color.argb(opacite, couleur.rouge, couleur.vert, couleur.bleu)
+
+    private fun remplirPolygone(toile: Canvas, c: Cadrage, polygone: List<PointPlan>, couleur: Int) {
+        if (polygone.size < 3) return
+        val chemin = Path()
+        chemin.moveTo(ecranX(c, polygone[0].est), ecranY(c, polygone[0].nord))
+        for (i in 1 until polygone.size) chemin.lineTo(ecranX(c, polygone[i].est), ecranY(c, polygone[i].nord))
+        chemin.close()
+        pinceauZone.color = couleur
+        toile.drawPath(chemin, pinceauZone)
+    }
+
+    private fun dessinerCouleursAltitude(toile: Canvas, c: Cadrage) {
+        val p = plage ?: return
+        for (bande in bandes) {
+            // Couleur du milieu de la bande.
+            val couleur = couleurAltitude(bande.altitude + equidistance / 2, p)
+            remplirPolygone(toile, c, bande.polygone, couleurAndroid(couleur, 210))
+        }
+    }
+
+    private fun dessinerRemblaiDeblai(toile: Canvas, c: Cadrage) {
+        val r = remblaiDeblai ?: return
+        if (calques.couleursAltitude) return // les deux coloriages ne se superposent pas
+        for (zone in r.zones) remplirPolygone(toile, c, zone.polygone, couleurAndroid(zone.couleur, 200))
+    }
+
+    /** Courbes de niveau ; une courbe sur 5 (« maîtresse ») plus épaisse. */
+    private fun dessinerCourbes(toile: Canvas, c: Cadrage) {
+        for (segment in courbes) {
+            val rang = Math.round(segment.altitude / equidistance)
+            val pinceau = if (rang % 5 == 0L) pinceauCourbeMaitresse else pinceauCourbe
+            toile.drawLine(
+                ecranX(c, segment.a.est), ecranY(c, segment.a.nord),
+                ecranX(c, segment.b.est), ecranY(c, segment.b.nord), pinceau,
+            )
+        }
+    }
+
+    /** Légende en bas à gauche, au-dessus de la barre d'échelle. */
+    private fun dessinerLegende(toile: Canvas) {
+        val lignes = mutableListOf<Pair<Int?, String>>()
+        val p = plage
+        if (calques.couleursAltitude && p != null) {
+            lignes.add(Pair(couleurAndroid(couleurAltitude(p.max, p)), "haut ${nombre(p.max, 2)} m"))
+            lignes.add(Pair(couleurAndroid(couleurAltitude(p.min, p)), "bas ${nombre(p.min, 2)} m"))
+        } else if (calques.remblaiDeblai) {
+            remblaiDeblai?.let { r ->
+                r.remblai.asReversed().forEach { lignes.add(Pair(couleurAndroid(it.couleur), "remblai ${nombre(it.de, 2)} à ${nombre(it.a, 2)} m")) }
+                r.deblai.forEach { lignes.add(Pair(couleurAndroid(it.couleur), "déblai ${nombre(it.de, 2)} à ${nombre(it.a, 2)} m")) }
+            }
+        }
+        if (calques.courbes && courbes.isNotEmpty()) lignes.add(Pair(null, "courbes tous les ${nombre(equidistance, 2)} m"))
+        if (lignes.isEmpty()) return
+        val hauteurLigne = dp(14f)
+        val largeur = lignes.maxOf { pinceauPetitTexte.measureText(it.second) } + dp(26f)
+        val bas = height - dp(36f)
+        val haut = bas - lignes.size * hauteurLigne - dp(6f)
+        toile.drawRect(dp(6f), haut, dp(6f) + largeur, bas, pinceauCadre)
+        lignes.forEachIndexed { i, (couleur, texte) ->
+            val y = haut + dp(4f) + (i + 1) * hauteurLigne - dp(3f)
+            if (couleur != null) {
+                pinceauZone.color = couleur
+                toile.drawRect(dp(10f), y - dp(10f), dp(20f), y, pinceauZone)
+            }
+            toile.drawText(texte, dp(24f), y - dp(1f), pinceauPetitTexte)
+        }
     }
 
     private fun ecranX(c: Cadrage, est: Double) = (width / 2.0 + (est - c.centreEst) * c.echelle).toFloat()
@@ -395,14 +538,13 @@ class CarteAvecBoutons(private val ecran: EcranPrincipal) {
     }
 
     private fun choisirCalques() {
-        val titres = arrayOf("Photo aérienne (swisstopo)", "Cadastre", "Noms des points", "Altitudes des points", "Triangles (après calcul du volume)")
-        val c = carte.calques
-        val coches = booleanArrayOf(c.photo, c.cadastre, c.noms, c.altitudes, c.triangles)
+        val liste = Calques.LISTE
+        val coches = BooleanArray(liste.size) { liste[it].cle in carte.calques.actifs }
         AlertDialog.Builder(ecran)
             .setTitle("Calques")
-            .setMultiChoiceItems(titres, coches) { _, i, coche -> coches[i] = coche }
+            .setMultiChoiceItems(liste.map { it.titre }.toTypedArray(), coches) { _, i, coche -> coches[i] = coche }
             .setPositiveButton("OK") { _, _ ->
-                val nouveaux = Calques(coches[0], coches[1], coches[2], coches[3], coches[4])
+                val nouveaux = Calques(liste.filterIndexed { i, _ -> coches[i] }.map { it.cle }.toSet())
                 carte.calques = nouveaux
                 enregistrerCalques(nouveaux)
             }
@@ -412,22 +554,12 @@ class CarteAvecBoutons(private val ecran: EcranPrincipal) {
 
     private fun lireCalques(): Calques {
         val p = ecran.preferences()
-        return Calques(
-            photo = p.getBoolean("calque_photo", true),
-            cadastre = p.getBoolean("calque_cadastre", false),
-            noms = p.getBoolean("calque_noms", true),
-            altitudes = p.getBoolean("calque_altitudes", false),
-            triangles = p.getBoolean("calque_triangles", true),
-        )
+        return Calques(Calques.LISTE.filter { p.getBoolean("calque_${it.cle}", it.parDefaut) }.map { it.cle }.toSet())
     }
 
     private fun enregistrerCalques(c: Calques) {
-        ecran.preferences().edit()
-            .putBoolean("calque_photo", c.photo)
-            .putBoolean("calque_cadastre", c.cadastre)
-            .putBoolean("calque_noms", c.noms)
-            .putBoolean("calque_altitudes", c.altitudes)
-            .putBoolean("calque_triangles", c.triangles)
-            .apply()
+        val edition = ecran.preferences().edit()
+        Calques.LISTE.forEach { edition.putBoolean("calque_${it.cle}", it.cle in c.actifs) }
+        edition.apply()
     }
 }

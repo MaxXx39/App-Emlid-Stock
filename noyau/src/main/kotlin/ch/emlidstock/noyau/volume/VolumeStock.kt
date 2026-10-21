@@ -17,6 +17,8 @@ data class ResultatVolumeStock(
     val surfaceNonCouverte: Double = 0.0,
     val trianglesDessus: List<Triangle> = emptyList(),
     val trianglesBase: List<Triangle> = emptyList(),
+    /** Triangles d'écart dessus − base (voir [ResultatVolume.trianglesEcart]). */
+    val trianglesEcart: List<Triangle> = emptyList(),
     val avertissements: List<String> = emptyList(),
     val erreur: String? = null,
 )
@@ -88,6 +90,7 @@ fun calculerVolumeStock(points: List<PointLeve>, lignesFermees: Set<Int> = empty
         surfaceNonCouverte = volume.surfaceNonCouverte,
         trianglesDessus = trianglesDessus,
         trianglesBase = base.triangles,
+        trianglesEcart = volume.trianglesEcart,
         avertissements = avertissements,
     )
 }
