@@ -43,5 +43,14 @@ data class PointLeve(
     val modifieALaMain: Boolean = false,
 )
 
-/** Un chantier : il contient plusieurs stocks. */
-data class Chantier(val id: String, var nom: String, val creeLeMs: Long)
+/**
+ * Un chantier : il contient plusieurs stocks.
+ * [affaire] et [dessinePar] remplissent le cartouche des PDF (comme dans l'appli topo V1).
+ */
+data class Chantier(
+    val id: String,
+    var nom: String,
+    val creeLeMs: Long,
+    var affaire: String = "",
+    var dessinePar: String = "",
+)

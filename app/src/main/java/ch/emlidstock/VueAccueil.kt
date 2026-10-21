@@ -35,6 +35,8 @@ class VueAccueil(private val ecran: EcranPrincipal) : Vue {
             ui.bouton("Nouveau chantier") { creerChantier() },
         ))
 
+        colonne.addView(ui.bouton("Exporter le chantier… (PDF, CSV, DXF, V1…)") { exporterChantier() })
+
         colonne.addView(ui.titre("Stocks"))
         colonne.addView(ui.bouton("+ Nouveau stock") { creerStock() })
         colonne.addView(listeStocks)
@@ -116,6 +118,20 @@ class VueAccueil(private val ecran: EcranPrincipal) : Vue {
                 remplir()
             }
             .show()
+    }
+
+    /** Exporte tous les stocks du chantier actif (volumes recalculés). */
+    private fun exporterChantier() {
+        val chantier = depot.chantierActif() ?: run {
+            ecran.message("Créez d'abord un chantier.")
+            return
+        }
+        val stocks = depot.stocksDuChantier(chantier.id).sortedBy { it.creeLeMs }
+        if (stocks.isEmpty()) {
+            ecran.message("Aucun stock dans ce chantier.")
+            return
+        }
+        Exports(ecran, chantier, stocks, chantier.nom).proposer()
     }
 
     // --- Stocks ---

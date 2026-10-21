@@ -44,7 +44,12 @@ Appli Android **native en Kotlin** pour lever des stocks de matériaux avec un G
    - 2D = la carte, avec de nouveaux calques repris de la V1 : couleurs selon l'altitude, courbes de niveau (équidistance auto, maîtresse 1 sur 5), remblai rouge / déblai jaune par paliers (auto), légende. Calculs portés en Kotlin avec les tests de la V1 (`noyau/.../controle/Courbes.kt`, `Couleurs.kt`, test `ControleTest`).
    - 3D = `Vue3D`, dessinée sans bibliothèque (projection `Projection3D` + tri du plus loin au plus proche + éclairage) : glisser pour tourner / incliner, pincer pour zoomer, exagération ×1 / ×2 / ×5, vue de dessus.
    - Le calcul de volume garde maintenant les triangles d'écart dessus − base (`trianglesEcart`), comme la V1.
-7. Exports PDF, DXF, Excel et synchronisation Google Drive.
+7. Exports PDF, DXF, Excel et synchronisation Google Drive. ← **fait (version 0.7), en attente du test terrain**
+   - Décisions (21.10.2026) : **Google Drive = choix du dossier d'Android** à chaque export (pas d'API Google, rien à configurer) ; **Excel = CSV** (point-virgule, comme la V1 : tableau des volumes puis liste des points) ; **cartouche comme la V1** (affaire, date, dessiné par ; + échelle, coordonnées, chantier), affaire et dessiné par gardés dans le chantier.
+   - Menu « Exporter… » dans un stock (ce stock) et « Exporter le chantier… » à l'accueil (tous les stocks, volumes recalculés) : PDF, CSV, DXF R12, LandXML, TXT, **fichier projet `.topo.json` pour la V1** (passerelle).
+   - Calculs repris de la V1 dans `noyau/.../export/` (échelle normalisée, CSV, DXF avec calques POINTS / NOMS / CONTOURS / LIGNES_RUPTURE / TRIANGLES_<stock> / COURBES, LandXML Nord-Est, projet V1) ; test `ExportTest`.
+   - **Passerelle vérifiée avec le vrai code de la V1** : le fichier projet du levé de référence, ouvert par `lireFichierProjet` de la V1, redonne 1636.197 / 648.979 / 372.201 m³ avec les mêmes triangles et le même CSV (contrôle fait avec node dans le dossier app-topo, fichier produit par `ExportTest` dans `noyau/build/`).
+   - PDF : `ExportPdf` (A4 paysage, mise en page de la V1, `android.graphics.pdf.PdfDocument`, sans bibliothèque) : plan vectoriel à l'échelle normalisée, remblai / déblai, couleurs, courbes, triangles, contours, lignes, noms, étiquette de volume par stock, photo aérienne / cadastre en option (150 dpi), barre d'échelle, Nord, tableau des volumes (+ total), légendes, cartouche. Calques choisis avant chaque PDF (mémorisés).
 
 ### Après le cahier des charges : tout centraliser dans la V2 (décision du 21.10.2026)
 
