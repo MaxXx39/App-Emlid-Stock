@@ -38,6 +38,7 @@ import ch.emlidstock.noyau.leve.ModeLeve
 import ch.emlidstock.noyau.leve.PointLeve
 import ch.emlidstock.noyau.volume.PointPlan
 import ch.emlidstock.noyau.volume.Triangle
+import ch.emlidstock.noyau.volume.pointDansPolygone
 import kotlin.math.hypot
 
 /** Calques de la carte qu'on peut afficher ou masquer (comme dans l'appli topo V1). */
@@ -50,6 +51,7 @@ data class Calques(val actifs: Set<String> = PAR_DEFAUT) {
     val couleursAltitude get() = "couleursAltitude" in actifs
     val courbes get() = "courbes" in actifs
     val remblaiDeblai get() = "remblaiDeblai" in actifs
+    val base get() = "base" in actifs
 
     /** Un calque : clé (pour l'enregistrer), titre affiché, état au premier lancement. */
     class Calque(val cle: String, val titre: String, val parDefaut: Boolean)
@@ -64,6 +66,7 @@ data class Calques(val actifs: Set<String> = PAR_DEFAUT) {
             Calque("couleursAltitude", "Couleurs selon l'altitude", false),
             Calque("courbes", "Courbes de niveau", false),
             Calque("remblaiDeblai", "Remblai (rouge) / déblai (jaune)", true),
+            Calque("base", "Surface de base (mode B)", true),
         )
         val PAR_DEFAUT = LISTE.filter { it.parDefaut }.map { it.cle }.toSet()
     }
@@ -98,6 +101,23 @@ class VueCarte(private val ecran: EcranPrincipal) : View(ecran) {
             preparerVuesDeControle()
             invalidate()
         }
+
+    /** Surface levée : triangles retirés au doigt (dessinés en tirets rouges, on peut les remettre). */
+    var trianglesRetires: List<Triangle> = emptyList()
+        set(valeur) {
+            field = valeur
+            invalidate()
+        }
+
+    /** Triangles de la surface de base en mode B (traits fins bleu clair, calque « Surface de base »). */
+    var trianglesBase: List<Triangle> = emptyList()
+        set(valeur) {
+            field = valeur
+            invalidate()
+        }
+
+    /** Si non nul : toucher la carte désigne un triangle (pour le retirer ou le remettre), et non un point. */
+    var quandToucherTriangle: ((Triangle) -> Unit)? = null
 
     /** Triangles d'écart dessus − base du dernier calcul (couleurs remblai / déblai). */
     var trianglesEcart: List<Triangle> = emptyList()
@@ -179,9 +199,10 @@ class VueCarte(private val ecran: EcranPrincipal) : View(ecran) {
     // Cadrage
     // =====================================================================
 
-    /** Cadre la carte sur tous les points du stock (et la position actuelle). */
+    /** Cadre la carte sur tous les points et triangles (et la position actuelle). */
     fun toutVoir() {
         val coordonnees = points.map { Pair(it.est, it.nord) } +
+            (triangles + trianglesRetires).flatMap { t -> t.sommets.map { Pair(it.est, it.nord) } } +
             listOfNotNull(position?.let { Pair(it.est, it.nord) })
         Cadrage.surPoints(coordonnees, largeur(), hauteur(), dp(40f).toInt())?.let { cadrage = it }
         invalidate()
@@ -211,7 +232,7 @@ class VueCarte(private val ecran: EcranPrincipal) : View(ecran) {
 
     override fun onDraw(toile: Canvas) {
         toile.drawRect(0f, 0f, width.toFloat(), height.toFloat(), pinceauFond)
-        if (cadrage == null && width > 0 && (points.isNotEmpty() || position != null)) toutVoir()
+        if (cadrage == null && width > 0 && (points.isNotEmpty() || triangles.isNotEmpty() || position != null)) toutVoir()
         val c = cadrage
         if (c == null) {
             toile.drawText("En attente de la position…", dp(12f), dp(24f), pinceauPetitTexte)
@@ -221,7 +242,9 @@ class VueCarte(private val ecran: EcranPrincipal) : View(ecran) {
         if (calques.cadastre) dessinerFond(toile, c, Fond.CADASTRE)
         if (calques.remblaiDeblai) dessinerRemblaiDeblai(toile, c)
         if (calques.couleursAltitude) dessinerCouleursAltitude(toile, c)
+        if (calques.base) dessinerAretes(toile, c, trianglesBase, pinceauBase)
         if (calques.triangles) dessinerTriangles(toile, c)
+        dessinerAretes(toile, c, trianglesRetires, pinceauRetire)
         if (calques.courbes) dessinerCourbes(toile, c)
         dessinerLignes(toile, c)
         dessinerPoints(toile, c)
@@ -335,16 +358,23 @@ class VueCarte(private val ecran: EcranPrincipal) : View(ecran) {
     }
 
     private val pinceauTriangle = trait(Color.argb(200, 255, 255, 255), 1f)
+    private val pinceauBase = trait(Color.argb(200, 129, 212, 250), 1f)
+    private val pinceauRetire = trait(Color.rgb(229, 57, 53), 1.5f).apply {
+        pathEffect = android.graphics.DashPathEffect(floatArrayOf(dp(5f), dp(4f)), 0f)
+    }
 
-    /** Triangles du calcul de volume, en traits fins blancs. */
-    private fun dessinerTriangles(toile: Canvas, c: Cadrage) {
-        for (t in triangles) {
+    /** Triangles du calcul de volume (ou de la surface), en traits fins blancs. */
+    private fun dessinerTriangles(toile: Canvas, c: Cadrage) = dessinerAretes(toile, c, triangles, pinceauTriangle)
+
+    /** Côtés de triangles avec le pinceau donné. */
+    private fun dessinerAretes(toile: Canvas, c: Cadrage, liste: List<Triangle>, pinceau: Paint) {
+        for (t in liste) {
             val xa = ecranX(c, t.a.est); val ya = ecranY(c, t.a.nord)
             val xb = ecranX(c, t.b.est); val yb = ecranY(c, t.b.nord)
             val xc = ecranX(c, t.c.est); val yc = ecranY(c, t.c.nord)
-            toile.drawLine(xa, ya, xb, yb, pinceauTriangle)
-            toile.drawLine(xb, yb, xc, yc, pinceauTriangle)
-            toile.drawLine(xc, yc, xa, ya, pinceauTriangle)
+            toile.drawLine(xa, ya, xb, yb, pinceau)
+            toile.drawLine(xb, yb, xc, yc, pinceau)
+            toile.drawLine(xc, yc, xa, ya, pinceau)
         }
     }
 
@@ -441,7 +471,12 @@ class VueCarte(private val ecran: EcranPrincipal) : View(ecran) {
         }
 
         override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
-            pointLePlusProche(e.x, e.y)?.let { quandToucherPoint(it) }
+            val actionTriangle = quandToucherTriangle
+            if (actionTriangle != null) {
+                triangleSousLeDoigt(e.x, e.y)?.let { actionTriangle(it) }
+            } else {
+                pointLePlusProche(e.x, e.y)?.let { quandToucherPoint(it) }
+            }
             return true
         }
     })
@@ -473,6 +508,14 @@ class VueCarte(private val ecran: EcranPrincipal) : View(ecran) {
             .filter { it.second <= dp(24f) }
             .minByOrNull { it.second }
             ?.first
+    }
+
+    /** Triangle (gardé ou retiré) qui contient le point touché ; null sinon. */
+    private fun triangleSousLeDoigt(x: Float, y: Float): Triangle? {
+        val c = cadrage ?: return null
+        val (est, nord) = c.versTerrain(x.toDouble(), y.toDouble(), width, height)
+        val touche = PointPlan(est, nord)
+        return (triangles + trianglesRetires).firstOrNull { t -> pointDansPolygone(touche, t.sommets.map { PointPlan(it.est, it.nord) }) }
     }
 
     override fun onDetachedFromWindow() {

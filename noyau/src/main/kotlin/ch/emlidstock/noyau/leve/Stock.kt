@@ -1,7 +1,7 @@
 package ch.emlidstock.noyau.leve
 
 /**
- * Un stock (un seul tas), rattaché à un chantier. Il peut être repris sur plusieurs sessions.
+ * Un stock (un seul tas) ou une surface levée ([type]), rattaché à un chantier. Il peut être repris sur plusieurs sessions.
  *
  * Nommage des points (cahier des charges) :
  * - bas de talus : B1, B2… (une seule ligne, elle forme le contour) ;
@@ -18,11 +18,20 @@ class Stock(
     points: List<PointLeve> = emptyList(),
     ligneHautActive: Int? = null,
     lignesFermees: Set<Int> = emptySet(),
+    /** Stock : base du volume = cette surface du chantier (mode B) ; null = points B du stock (mode A). */
+    var baseSurfaceId: String? = null,
+    trianglesSupprimes: Set<String> = emptySet(),
 ) {
     private val listePoints = points.toMutableList()
 
     /** Lignes de haut de talus fermées (dernier point relié au premier), au choix de l'utilisateur. */
     val lignesFermees: MutableSet<Int> = lignesFermees.toMutableSet()
+
+    /**
+     * Surface levée : triangles retirés au doigt (bords en trop), désignés par leur clé
+     * (noms des 3 sommets triés, voir cleTriangle), comme dans la V1.
+     */
+    val trianglesSupprimes: MutableSet<String> = trianglesSupprimes.toMutableSet()
 
     /** Points dans l'ordre où ils ont été levés. */
     val points: List<PointLeve>

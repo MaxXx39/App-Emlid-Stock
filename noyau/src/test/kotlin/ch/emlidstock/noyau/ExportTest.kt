@@ -12,6 +12,11 @@ import ch.emlidstock.noyau.export.texteJson
 import ch.emlidstock.noyau.leve.ModeLeve
 import ch.emlidstock.noyau.leve.PointLeve
 import ch.emlidstock.noyau.leve.Stock
+import ch.emlidstock.noyau.leve.TypeLeve
+import ch.emlidstock.noyau.surface.SurfaceImportee
+import ch.emlidstock.noyau.surface.SurfacesDuChantier
+import ch.emlidstock.noyau.surface.calculerSurfaceLevee
+import ch.emlidstock.noyau.surface.lireLandXml
 import ch.emlidstock.noyau.volume.calculerVolumeStock
 import java.io.File
 import java.time.Instant
@@ -99,5 +104,37 @@ class ExportTest {
         assertEquals("\"a\\\\b\\n\"", texteJson("a\\b\n"))
         // Fichier gardé pour le contrôle avec le vrai code de la V1 (voir CLAUDE.md).
         File("build/projet-v1-reference.topo.json").writeText(texte)
+    }
+
+    @Test
+    fun `fichier projet pour la V1 - surfaces levee et importee, base B`() {
+        val reference = stocksDeReference()
+        val lue = lireLandXml(File("../exemples/20260520_Stock.xml").readText()).surfaces.single()
+        val plan = SurfaceImportee("plan-431", "c", lue.nom, "LandXML", "20260520_Stock.xml", 0, lue.sommets, lue.faces)
+        // Stock 1 sur le plan à 431 m (mode B), stock 2 sur une surface levée faite de ses points B (mode B).
+        val stock1 = Stock("stock-1", "c", "Stock 1", 0, points = reference[0].points, lignesFermees = setOf(1), baseSurfaceId = "plan-431")
+        val levee = Stock("tn-2", "c", "TN stock 2", 0, type = TypeLeve.SURFACE, points = reference[1].points.filter { it.mode == ModeLeve.BAS_DE_TALUS })
+        val stock2 = Stock("stock-2", "c", "Stock 2", 0, points = reference[1].points, lignesFermees = setOf(1), baseSurfaceId = "tn-2")
+        val surfaces = SurfacesDuChantier(listOf(levee), listOf(plan))
+        val exportes = listOf(
+            StockExporte(stock1, surfaces.volume(stock1)),
+            StockExporte(stock2, surfaces.volume(stock2)),
+            StockExporte(levee, null, calculerSurfaceLevee(levee.points, emptySet(), emptySet()).triangles),
+        )
+        var compteur = 0
+        val texte = ecrireProjetV1("Mode B", exportes, "10 203", "MGO", Instant.parse("2026-10-21T13:00:00Z"), listOf(plan)) { "id-${++compteur}" }
+        assertTrue(texte.contains(""""volume":{"base":"surface","surfaceId":"plan-431"}"""))
+        assertTrue(texte.contains(""""volume":{"base":"surface","surfaceId":"tn-2"}"""))
+        assertTrue(texte.contains(""""type":"landxml","nomFichier":"20260520_Stock.xml""""))
+        assertTrue(texte.contains("\"faces\":[["))
+        // CSV : base B pour les deux stocks, la surface levée n'a pas de ligne de volume.
+        val csv = genererCsv(exportes)
+        assertTrue(csv.contains("Stock 1;B;758.638;62.570;1101.700"), csv)
+        assertTrue(csv.contains("Stock 2;B;"), csv)
+        assertTrue(csv.contains("TN stock 2;b100;Contour (facultatif);"), csv)
+        // DXF : les triangles de la surface levée ont leur calque.
+        assertTrue(genererDxf(exportes).contains("TRIANGLES_TN_STOCK_2"))
+        // Fichier gardé pour le contrôle avec le vrai code de la V1.
+        File("build/projet-v1-mode-b.topo.json").writeText(texte)
     }
 }

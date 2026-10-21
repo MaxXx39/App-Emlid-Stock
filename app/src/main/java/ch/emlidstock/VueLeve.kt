@@ -13,32 +13,41 @@ import android.widget.ScrollView
 import ch.emlidstock.noyau.leve.ModeLeve
 import ch.emlidstock.noyau.leve.PointLeve
 import ch.emlidstock.noyau.leve.Stock
+import ch.emlidstock.noyau.leve.TypeLeve
+import ch.emlidstock.noyau.leve.libelleMode
 import ch.emlidstock.noyau.leve.nomDePoint
 import ch.emlidstock.noyau.leve.preparerPoint
+import ch.emlidstock.noyau.surface.ResultatSurface
+import ch.emlidstock.noyau.surface.calculerSurfaceLevee
+import ch.emlidstock.noyau.surface.cleTriangle
+import ch.emlidstock.noyau.surface.resumerSurface
 import ch.emlidstock.noyau.volume.ResultatVolumeStock
-import ch.emlidstock.noyau.volume.calculerVolumeStock
+import ch.emlidstock.noyau.volume.Triangle
 
 /**
- * Écran de levé d'un stock : choix du mode (bas de talus, haut de talus, point caractéristique),
- * nom du prochain point, bouton « Prendre le point » (bloqué hors RTK fixe ou inclinaison pas prête),
- * annulation du dernier point, carte du levé et liste des points (toucher un point pour le modifier
- * ou le supprimer), calcul du volume, export des points en TXT.
+ * Écran de levé d'un stock ou d'une surface : choix du mode (stock : bas de talus, haut de talus,
+ * point caractéristique ; surface : contour facultatif, ligne de rupture, point), nom du prochain point,
+ * bouton « Prendre le point » (bloqué hors RTK fixe ou inclinaison pas prête), annulation du dernier point,
+ * carte du levé et liste des points (toucher un point pour le modifier ou le supprimer).
+ * Stock : choix de la base et calcul du volume. Surface : calcul des triangles, triangles retirés au doigt.
  */
 class VueLeve(
     private val ecran: EcranPrincipal,
     private val stock: Stock,
     volumeDejaCalcule: ResultatVolumeStock? = null,
+    surfaceDejaCalculee: ResultatSurface? = null,
 ) : Vue {
 
     private val ui = ecran.ui
     private var mode = ModeLeve.BAS_DE_TALUS
+    private val estSurface = stock.type == TypeLeve.SURFACE
 
     private val texteTitre = ui.titre("")
     private val textePosition = ui.zoneTexte(16f)
     private val carte = CarteAvecBoutons(ecran).also { c ->
         c.carte.quandToucherPoint = { point -> actionsPoint(point) }
     }
-    private val boutonsModes = ModeLeve.values().associateWith { m -> ui.bouton(m.libelle) { choisirMode(m) } }
+    private val boutonsModes = ModeLeve.values().associateWith { m -> ui.bouton(libelleMode(stock.type, m)) { choisirMode(m) } }
     private val ligneHaut = LinearLayout(ecran).apply { orientation = LinearLayout.HORIZONTAL }
     private val texteLigneHaut = ui.texte(16f)
     private val texteProchain = ui.texte(22f).apply { setTypeface(null, Typeface.BOLD) }
@@ -51,9 +60,11 @@ class VueLeve(
     private val boutonFermerLigne = ui.bouton("") { basculerFermetureLigne() }
     private val texteVolume = ui.zoneTexte(14f)
     private var resultatVolume: ResultatVolumeStock? = volumeDejaCalcule
-    private val boutonControle = ui.bouton("Vues de contrôle (2D / 3D)") {
-        resultatVolume?.takeIf { it.erreur == null }?.let { ecran.afficherControle(stock, it) }
-    }
+    private var resultatSurface: ResultatSurface? = surfaceDejaCalculee
+    private val texteBase = ui.texte(14f)
+    private var retraitActif = false
+    private val boutonRetrait = ui.bouton("") { basculerRetrait() }
+    private val boutonControle = ui.bouton("Vues de contrôle (2D / 3D)") { ouvrirControle() }
     private val texteCompteurs = ui.texte(14f)
     private val listePoints = LinearLayout(ecran).apply { orientation = LinearLayout.VERTICAL }
 
@@ -61,7 +72,7 @@ class VueLeve(
         val colonne = ui.colonne()
         colonne.addView(texteTitre)
         colonne.addView(ui.ligneBoutons(
-            ui.bouton("← Stocks") { ecran.afficherAccueil() },
+            ui.bouton("← Accueil") { ecran.afficherAccueil() },
             ui.bouton("Renommer") { renommer() },
         ))
         // Carte : environ 45 % de la hauteur de l'écran (comme dans l'appli topo V1).
@@ -82,8 +93,16 @@ class VueLeve(
         colonne.addView(boutonPrendre)
         colonne.addView(ui.bouton("Annuler le dernier point") { annulerDernier() })
 
-        colonne.addView(ui.titre("Volume"))
-        colonne.addView(ui.bouton("Calculer le volume") { calculerVolume() })
+        if (estSurface) {
+            colonne.addView(ui.titre("Surface"))
+            colonne.addView(ui.bouton("Calculer la surface (triangles)") { calculerSurface() })
+            colonne.addView(boutonRetrait)
+        } else {
+            colonne.addView(ui.titre("Volume"))
+            colonne.addView(texteBase)
+            colonne.addView(ui.bouton("Changer la base du volume…") { choisirBase() })
+            colonne.addView(ui.bouton("Calculer le volume") { calculerVolume() })
+        }
         colonne.addView(texteVolume)
         colonne.addView(boutonControle)
 
@@ -120,7 +139,7 @@ class VueLeve(
 
     /** Réécrit tout ce qui dépend des points et du mode (après un changement). */
     private fun remplir() {
-        texteTitre.text = stock.nom
+        texteTitre.text = if (estSurface) "${stock.nom} (surface levée)" else stock.nom
         for ((m, bouton) in boutonsModes) {
             if (m == mode) {
                 bouton.setBackgroundColor(ecran.getColor(R.color.ambre))
@@ -144,9 +163,16 @@ class VueLeve(
         texteProchain.text = "Prochain point : ${stock.prochainNom(mode)}"
 
         val nbLignes = stock.points.mapNotNull { it.ligne }.distinct().size
-        texteCompteurs.text = "Bas de talus : ${stock.nombreDePoints(ModeLeve.BAS_DE_TALUS)}  ·  " +
-            "Haut de talus : ${stock.nombreDePoints(ModeLeve.HAUT_DE_TALUS)} ($nbLignes lignes)  ·  " +
-            "Caractéristiques : ${stock.nombreDePoints(ModeLeve.POINT_CARACTERISTIQUE)}"
+        texteCompteurs.text = if (estSurface) {
+            "Contour : ${stock.nombreDePoints(ModeLeve.BAS_DE_TALUS)}  ·  " +
+                "Lignes de rupture : ${stock.nombreDePoints(ModeLeve.HAUT_DE_TALUS)} ($nbLignes lignes)  ·  " +
+                "Points : ${stock.nombreDePoints(ModeLeve.POINT_CARACTERISTIQUE)}"
+        } else {
+            "Bas de talus : ${stock.nombreDePoints(ModeLeve.BAS_DE_TALUS)}  ·  " +
+                "Haut de talus : ${stock.nombreDePoints(ModeLeve.HAUT_DE_TALUS)} ($nbLignes lignes)  ·  " +
+                "Caractéristiques : ${stock.nombreDePoints(ModeLeve.POINT_CARACTERISTIQUE)}"
+        }
+        texteBase.text = "Base : ${nomDeLaBase()}"
 
         carte.carte.points = stock.points.toList()
         carte.carte.lignesFermees = stock.lignesFermees.toSet()
@@ -174,8 +200,15 @@ class VueLeve(
     private fun apresChangement(noteJournal: String) {
         ecran.journal.ajouter("NOTE", "$noteJournal (stock ${stock.nom})")
         ecran.enregistrerLeves()
-        resultatVolume = null
+        oublierResultats()
         remplir()
+    }
+
+    /** Les points ont changé : le volume (ou la surface) calculé n'est plus valable. */
+    private fun oublierResultats() {
+        resultatVolume = null
+        resultatSurface = null
+        if (retraitActif) basculerRetrait()
     }
 
     // =====================================================================
@@ -203,10 +236,11 @@ class VueLeve(
         val lignes = stock.lignesHaut()
         val nouvelleLigne = (lignes.maxOrNull() ?: 0) + 1
         val choix = mutableListOf<Pair<String, Pair<ModeLeve, Int?>>>()
-        choix.add(Pair("Bas de talus (B…)", Pair(ModeLeve.BAS_DE_TALUS, null)))
-        lignes.forEach { choix.add(Pair("Haut de talus, ligne H$it", Pair(ModeLeve.HAUT_DE_TALUS, it))) }
-        choix.add(Pair("Haut de talus, nouvelle ligne H$nouvelleLigne", Pair(ModeLeve.HAUT_DE_TALUS, nouvelleLigne)))
-        choix.add(Pair("Point caractéristique (C…)", Pair(ModeLeve.POINT_CARACTERISTIQUE, null)))
+        val (b, h, c) = ModeLeve.values().map { libelleMode(stock.type, it) }
+        choix.add(Pair("$b (B…)", Pair(ModeLeve.BAS_DE_TALUS, null)))
+        lignes.forEach { choix.add(Pair("$h, ligne H$it", Pair(ModeLeve.HAUT_DE_TALUS, it))) }
+        choix.add(Pair("$h, nouvelle ligne H$nouvelleLigne", Pair(ModeLeve.HAUT_DE_TALUS, nouvelleLigne)))
+        choix.add(Pair("$c (C…)", Pair(ModeLeve.POINT_CARACTERISTIQUE, null)))
         AlertDialog.Builder(ecran)
             .setTitle("Nouveau rôle de ${point.nom}")
             .setItems(choix.map { it.first }.toTypedArray()) { _, i ->
@@ -292,7 +326,7 @@ class VueLeve(
     }
 
     // =====================================================================
-    // Lignes de haut de talus, volume, export
+    // Lignes de haut de talus, base, volume, surface, export
     // =====================================================================
 
     private fun basculerFermetureLigne() {
@@ -302,10 +336,34 @@ class VueLeve(
         apresChangement("Ligne H$ligne ${if (fermer) "fermée" else "ouverte"}")
     }
 
+    /** Nom de la base du volume : points B (mode A) ou la surface choisie (mode B). */
+    private fun nomDeLaBase(): String {
+        val id = stock.baseSurfaceId ?: return "points du bas de talus B (mode A)"
+        val nom = ecran.depot.surfacesDuChantier(stock.chantierId).nom(id) ?: return "surface supprimée : choisissez une autre base"
+        return "surface « $nom » (mode B)"
+    }
+
+    /** Base du volume : points B du stock (mode A) ou une surface du chantier, levée ou importée (mode B). */
+    private fun choisirBase() {
+        val choix = ecran.depot.surfacesDuChantier(stock.chantierId).choix()
+        val libelles = listOf("Points du bas de talus B (mode A)") + choix.map { it.nom }
+        val actuel = choix.indexOfFirst { it.id == stock.baseSurfaceId } + 1
+        AlertDialog.Builder(ecran)
+            .setTitle("Base du volume")
+            .setSingleChoiceItems(libelles.toTypedArray(), actuel) { dialogue, i ->
+                stock.baseSurfaceId = if (i == 0) null else choix[i - 1].id
+                dialogue.dismiss()
+                apresChangement("Base du volume : ${libelles[i]}")
+                if (choix.isEmpty()) ecran.message("Aucune surface dans ce chantier : levez-en une (+ Nouvelle surface) ou importez un LandXML / DXF à l'accueil.")
+            }
+            .setNegativeButton("Annuler", null)
+            .show()
+    }
+
     /** Calcule le volume (validation du levé du stock) et l'affiche avec ses valeurs intermédiaires. */
     private fun calculerVolume() {
         val resultat = try {
-            calculerVolumeStock(stock.points, stock.lignesFermees)
+            ecran.depot.surfacesDuChantier(stock.chantierId).volume(stock)
         } catch (erreur: Exception) {
             ResultatVolumeStock(erreur = "calcul impossible (${erreur.message})")
         }
@@ -314,24 +372,30 @@ class VueLeve(
             ecran.journal.ajouter(
                 "VOLUME",
                 "${stock.nom} : remblai ${nombre(resultat.remblai, 3)} m³, déblai ${nombre(resultat.deblai, 3)} m³, " +
-                    "surface ${nombre(resultat.surfacePlan, 3)} m²",
+                    "surface ${nombre(resultat.surfacePlan, 3)} m², base ${resultat.nomBase ?: "points B"}",
             )
         }
         afficherVolume()
     }
 
     private fun afficherVolume() {
+        if (estSurface) {
+            afficherSurface()
+            return
+        }
         val r = resultatVolume
         val volumeValable = r != null && r.erreur == null
         carte.carte.triangles = if (volumeValable) r!!.trianglesDessus else emptyList()
         carte.carte.trianglesEcart = if (volumeValable) r!!.trianglesEcart else emptyList()
+        carte.carte.trianglesBase = if (volumeValable && r!!.nomBase != null) r.trianglesBase else emptyList()
         boutonControle.visibility = if (volumeValable) View.VISIBLE else View.GONE
         texteVolume.setTextColor(if (r?.erreur != null) EcranPrincipal.ROUGE else Color.BLACK)
         texteVolume.text = when {
             r == null -> "Touchez « Calculer le volume » quand le levé est terminé.\n" +
-                "Contour = points B dans l'ordre ; lignes H = lignes de rupture ; base = points B."
+                "Contour = points B dans l'ordre ; lignes H = lignes de rupture ; base : voir ci-dessus."
             r.erreur != null -> "Calcul impossible : ${r.erreur}"
             else -> buildString {
+                append("Base             ${r.nomBase ?: "points B"} (mode ${r.mode})\n")
                 append("Remblai          ${nombre(r.remblai, 3)} m³\n")
                 append("Déblai           ${nombre(r.deblai, 3)} m³\n")
                 append("Surface en plan  ${nombre(r.surfacePlan, 3)} m²\n")
@@ -342,6 +406,97 @@ class VueLeve(
                 if (r.surfaceNonCouverte > 0) append("\nATTENTION : ${nombre(r.surfaceNonCouverte, 3)} m² non couverts par la base")
                 r.avertissements.forEach { append("\nRemarque : $it") }
             }
+        }
+    }
+
+    /** Calcule les triangles de la surface levée (contour facultatif, lignes de rupture, triangles retirés). */
+    private fun calculerSurface() {
+        resultatSurface = try {
+            calculerSurfaceLevee(stock.points, stock.lignesFermees, stock.trianglesSupprimes)
+        } catch (erreur: Exception) {
+            ResultatSurface(erreur = "calcul impossible (${erreur.message})")
+        }
+        resultatSurface?.takeIf { it.erreur == null }?.let {
+            ecran.journal.ajouter("SURFACE", "${stock.nom} : ${it.triangles.size} triangles, ${nombre(resumerSurface(it.triangles).surfacePlan, 3)} m²")
+        }
+        afficherSurface()
+    }
+
+    private fun afficherSurface() {
+        val r = resultatSurface
+        val valable = r != null && r.erreur == null
+        carte.carte.triangles = r?.triangles.orEmpty()
+        carte.carte.trianglesRetires = r?.trianglesRetires.orEmpty()
+        carte.carte.trianglesEcart = emptyList()
+        boutonControle.visibility = if (valable) View.VISIBLE else View.GONE
+        boutonRetrait.text = if (retraitActif) {
+            "Retrait ACTIF : touchez un triangle sur la carte pour le retirer ou le remettre → Terminé"
+        } else {
+            "Retirer / remettre des triangles (toucher la carte)"
+        }
+        boutonRetrait.setBackgroundColor(if (retraitActif) ecran.getColor(R.color.ambre) else Color.rgb(230, 230, 230))
+        texteVolume.setTextColor(if (r?.erreur != null) EcranPrincipal.ROUGE else Color.BLACK)
+        texteVolume.text = when {
+            r == null -> "Touchez « Calculer la surface » quand le levé est terminé.\n" +
+                "Contour B facultatif (sans contour : tous les points, bord automatique) ; lignes H = lignes de rupture.\n" +
+                "Cette surface peut servir de base au volume d'un stock (mode B)."
+            r.erreur != null -> "Calcul impossible : ${r.erreur}"
+            else -> buildString {
+                val resume = resumerSurface(r.triangles)
+                append("Surface en plan  ${nombre(resume.surfacePlan, 3)} m²\n")
+                append("Triangles        ${r.triangles.size}")
+                if (r.trianglesRetires.isNotEmpty()) append(" (+ ${r.trianglesRetires.size} retirés, en tirets rouges)")
+                append("\nAltitudes        ${nombre(resume.altitudeMin, 3)} à ${nombre(resume.altitudeMax, 3)} m")
+                r.avertissements.forEach { append("\nRemarque : $it") }
+            }
+        }
+    }
+
+    /** Active ou arrête le retrait des triangles au doigt (surface levée). */
+    private fun basculerRetrait() {
+        if (!retraitActif && resultatSurface == null) calculerSurface()
+        val r = resultatSurface
+        if (!retraitActif && (r == null || (r.triangles.isEmpty() && r.trianglesRetires.isEmpty()))) {
+            ecran.message("Pas de triangles : ${r?.erreur ?: "calculez d'abord la surface"}")
+            return
+        }
+        retraitActif = !retraitActif
+        carte.carte.quandToucherTriangle = if (retraitActif) ::basculerTriangle else null
+        afficherSurface()
+    }
+
+    /** Retire le triangle touché, ou le remet s'il était retiré. */
+    private fun basculerTriangle(t: Triangle) {
+        val cle = cleTriangle(t)
+        if (!stock.trianglesSupprimes.remove(cle)) stock.trianglesSupprimes.add(cle)
+        ecran.enregistrerLeves()
+        resultatSurface = calculerSurfaceLevee(stock.points, stock.lignesFermees, stock.trianglesSupprimes)
+        afficherSurface()
+    }
+
+    /** Vues de contrôle 2D / 3D du volume calculé ou de la surface. */
+    private fun ouvrirControle() {
+        if (estSurface) {
+            val r = resultatSurface?.takeIf { it.erreur == null } ?: return
+            val resume = resumerSurface(r.triangles)
+            ecran.afficherControle(
+                SujetControle(
+                    stock.nom, stock.points.toList(), stock.lignesFermees.toSet(), r.triangles, emptyList(),
+                    "Surface ${nombre(resume.surfacePlan, 3)} m²  ·  ${r.triangles.size} triangles  ·  " +
+                        "altitudes ${nombre(resume.altitudeMin, 3)} à ${nombre(resume.altitudeMax, 3)} m",
+                    "← Levé de la surface",
+                ) { ecran.afficherLeve(stock, surface = r) },
+            )
+        } else {
+            val r = resultatVolume?.takeIf { it.erreur == null } ?: return
+            ecran.afficherControle(
+                SujetControle(
+                    stock.nom, stock.points.toList(), stock.lignesFermees.toSet(), r.trianglesDessus, r.trianglesEcart,
+                    "Remblai ${nombre(r.remblai, 3)} m³  ·  déblai ${nombre(r.deblai, 3)} m³\n" +
+                        "Surface ${nombre(r.surfacePlan, 3)} m²  ·  ${r.trianglesDessus.size} triangles  ·  base ${r.nomBase ?: "points B"}",
+                    "← Levé du stock",
+                ) { ecran.afficherLeve(stock, r) },
+            )
         }
     }
 
@@ -381,7 +536,7 @@ class VueLeve(
                 "incl ${nombre(point.inclinaisonDeg, 1)}° (stock ${stock.nom})",
         )
         if (ecran.enregistrerLeves()) ecran.message("${point.nom} enregistré")
-        resultatVolume = null
+        oublierResultats()
         remplir()
     }
 
@@ -397,7 +552,7 @@ class VueLeve(
     }
 
     private fun renommer() {
-        ecran.demanderNom("Nouveau nom du stock", stock.nom) { nom ->
+        ecran.demanderNom(if (estSurface) "Nouveau nom de la surface" else "Nouveau nom du stock", stock.nom) { nom ->
             stock.nom = nom
             ecran.enregistrerLeves()
             remplir()

@@ -3,10 +3,11 @@ package ch.emlidstock.noyau.importation
 import ch.emlidstock.noyau.leve.ModeLeve
 import ch.emlidstock.noyau.leve.PointLeve
 import ch.emlidstock.noyau.leve.Stock
+import ch.emlidstock.noyau.leve.TypeLeve
 import ch.emlidstock.noyau.volume.PointPlan
 import ch.emlidstock.noyau.volume.pointDansPolygone
 
-/** Stock créé, ou message d'erreur compréhensible. */
+/** Stock (ou surface) créé, ou message d'erreur compréhensible. */
 data class ResultatCreation(val stock: Stock?, val erreur: String?)
 
 /**
@@ -15,6 +16,8 @@ data class ResultatCreation(val stock: Stock?, val erreur: String?)
  * - [lignes] : lignes de haut de talus (noms dans l'ordre, fermée ?) → rôle H, lignes 1, 2… ;
  * - les autres points du fichier situés **dans le contour** deviennent des points caractéristiques (C),
  *   comme « tous les points du levé dans le contour » de la V1.
+ * Pour une surface ([type] SURFACE, étape 9) : le contour est facultatif ; sans contour, tous les
+ * autres points du fichier deviennent des points (C).
  * Les coordonnées viennent du fichier (MN95, RAN95 supposé : aucune conversion) ; la position GNSS
  * d'origine n'est pas connue (0), et la qualité est notée 0 (point importé, pas mesuré par l'appli).
  */
@@ -27,9 +30,13 @@ fun creerStockImporte(
     contour: List<String>,
     lignes: List<Pair<List<String>, Boolean>>,
     nomFichier: String,
+    type: TypeLeve = TypeLeve.STOCK,
 ): ResultatCreation {
     val parNom = points.associateBy { it.nom } // en cas de nom en double, le dernier lu est gardé
-    if (contour.size < 3) return ResultatCreation(null, "le contour doit avoir au moins 3 points")
+    val sansContour = type == TypeLeve.SURFACE && contour.isEmpty()
+    if (contour.size < 3 && !sansContour) {
+        return ResultatCreation(null, if (type == TypeLeve.SURFACE) "le contour doit avoir au moins 3 points (ou rester vide)" else "le contour doit avoir au moins 3 points")
+    }
     val utilises = mutableSetOf<String>()
     val doublons = (contour + lignes.flatMap { it.first }).groupBy { it }.filterValues { it.size > 1 }.keys
     if (doublons.isNotEmpty()) return ResultatCreation(null, "point(s) utilisé(s) deux fois : ${doublons.joinToString(", ")}")
@@ -50,13 +57,14 @@ fun creerStockImporte(
     contour.forEachIndexed { i, n -> resultat.add(pointLeve(parNom.getValue(n), ModeLeve.BAS_DE_TALUS, null, i + 1)) }
     lignes.forEachIndexed { l, (noms, _) -> noms.forEachIndexed { i, n -> resultat.add(pointLeve(parNom.getValue(n), ModeLeve.HAUT_DE_TALUS, l + 1, i + 1)) } }
 
-    // Autres points du fichier dans le contour → points caractéristiques.
+    // Autres points du fichier dans le contour (tous, sans contour) → points caractéristiques.
     val polygone = contour.map { parNom.getValue(it).let { p -> PointPlan(p.est, p.nord) } }
     var numeroC = 0
     for (p in points) {
         if (p.nom in utilises) continue
-        if (pointDansPolygone(PointPlan(p.est, p.nord), polygone)) resultat.add(pointLeve(p, ModeLeve.POINT_CARACTERISTIQUE, null, ++numeroC))
+        if (sansContour || pointDansPolygone(PointPlan(p.est, p.nord), polygone)) resultat.add(pointLeve(p, ModeLeve.POINT_CARACTERISTIQUE, null, ++numeroC))
     }
     val fermees = lignes.withIndex().filter { it.value.second }.map { it.index + 1 }.toSet()
-    return ResultatCreation(Stock(id, chantierId, nom, creeLeMs, points = resultat, lignesFermees = fermees), null)
+    if (resultat.size < 3) return ResultatCreation(null, "il faut au moins 3 points")
+    return ResultatCreation(Stock(id, chantierId, nom, creeLeMs, type, points = resultat, lignesFermees = fermees), null)
 }

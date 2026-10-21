@@ -1,10 +1,12 @@
 package ch.emlidstock.noyau.leve
 
 /**
- * Type de levé. La V1 ne connaît que le levé de stock ; d'autres types pourront s'ajouter ici
- * plus tard (le reste de l'appli lit ce champ pour savoir quoi faire).
+ * Type de levé :
+ * - STOCK : un tas, avec son volume (contour B, lignes de haut de talus H, points C) ;
+ * - SURFACE : une surface levée (ex. terrain naturel avant le stock) qui peut servir de base
+ *   de volume à un stock (mode B) : contour B facultatif, lignes de rupture H, points C (étape 9).
  */
-enum class TypeLeve { STOCK }
+enum class TypeLeve { STOCK, SURFACE }
 
 /** Les trois modes de levé d'un stock, avec la lettre des noms de points. */
 enum class ModeLeve(val libelle: String, val lettre: String) {
@@ -12,6 +14,18 @@ enum class ModeLeve(val libelle: String, val lettre: String) {
     HAUT_DE_TALUS("Haut de talus", "H"),
     POINT_CARACTERISTIQUE("Point caractéristique", "C"),
 }
+
+/** Nom d'un mode à afficher : pour une surface levée, B = contour (facultatif), H = ligne de rupture, C = point. */
+fun libelleMode(type: TypeLeve, mode: ModeLeve): String =
+    if (type == TypeLeve.STOCK) {
+        mode.libelle
+    } else {
+        when (mode) {
+            ModeLeve.BAS_DE_TALUS -> "Contour (facultatif)"
+            ModeLeve.HAUT_DE_TALUS -> "Ligne de rupture"
+            ModeLeve.POINT_CARACTERISTIQUE -> "Point"
+        }
+    }
 
 /**
  * Un point levé. Coordonnées en MN95 (m) et altitude RAN95 / LHN95 (m) ;

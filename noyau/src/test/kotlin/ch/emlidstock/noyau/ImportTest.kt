@@ -6,6 +6,7 @@ import ch.emlidstock.noyau.importation.ecrireListeDeNoms
 import ch.emlidstock.noyau.importation.lireListeDeNoms
 import ch.emlidstock.noyau.importation.lirePoints
 import ch.emlidstock.noyau.leve.ModeLeve
+import ch.emlidstock.noyau.leve.TypeLeve
 import ch.emlidstock.noyau.volume.calculerVolumeStock
 import java.io.File
 import kotlin.test.Test
@@ -119,6 +120,16 @@ class StockImporteTest {
             val volume = calculerVolumeStock(stock.points, stock.lignesFermees)
             assertEquals(mensura, volume.remblai, 0.001)
         }
+    }
+
+    @Test
+    fun `une surface importee sans contour garde tous les points du fichier`() {
+        val r = creerStockImporte("t", "c", "Terrain", 0, points, emptyList(), emptyList(), "f.txt", TypeLeve.SURFACE)
+        assertNull(r.erreur)
+        assertEquals(TypeLeve.SURFACE, r.stock!!.type)
+        assertEquals(points.size, r.stock!!.points.size)
+        // Un stock, lui, demande toujours un contour.
+        assertNotNull(creerStockImporte("s", "c", "Stock", 0, points, emptyList(), emptyList(), "f.txt").erreur)
     }
 
     @Test

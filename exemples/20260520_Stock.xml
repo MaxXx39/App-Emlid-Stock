@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<LandXML xmlns="http://www.landxml.org/schema/LandXML-1.1" xsi:schemaLocation="http://www.landxml.org/schema/LandXML-1.1 http://www.landxml.org/schema/LandXML-1.1/LandXML-1.1.xsd" version="1.1" language="English" date="2026-10-19" time="08:20:42Z" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<Application name="Mensura" manufacturer="Sogelink" version="12.1.2.51" manufacturerURL="www.sogelink.com">
+		<Author createdBy=" " createdByEmail="" company="" companyURL=""/>
+	</Application>
+	<Project name="20260520 Stock" desc="">
+		<Feature code="Mensura_LandXML_Version">
+			<Property label="version" value="6"/>
+		</Feature>
+	</Project>
+	<Units>
+		<Metric areaUnit="squareMeter" linearUnit="meter" volumeUnit="cubicMeter" diameterUnit="meter" heightUnit="meter" temperatureUnit="celsius" pressureUnit="milliBars" angularUnit="decimal degrees" directionUnit="decimal degrees"/>
+	</Units>
+	<Surfaces desc="Terrains">
+		<Surface name="Terrain1" desc="Terrain" state="existing">
+			<Definition surfType="TIN" area2DSurf="7021.815" area3DSurf="7021.815" elevMax="431.0" elevMin="431.0">
+				<Pnts>
+					<P id="1" name="527">1124571.718991 2499317.4266 431.0</P>
+					<P id="3" name="529">1124658.159386 2499415.750453 431.0</P>
+					<P id="2" name="528">1124546.052498 2499367.747238 431.0</P>
+					<P id="4" name="530">1124678.13588 2499355.522817 431.0</P>
+				</Pnts>
+				<Faces>
+					<F>2 1 3</F>
+					<F>3 1 4</F>
+				</Faces>
+			</Definition>
+			<SourceData>
+				<Boundaries>
+					<Boundary edgeTrim="false" bndType="outer">
+						<PntList3D> 1124546.052498 2499367.747238 431.0 1124571.718991 2499317.4266 431.0 1124678.13588 2499355.522817 431.0 1124658.159386 2499415.750453 431.0 1124546.052498 2499367.747238 431.0</PntList3D>
+					</Boundary>
+				</Boundaries>
+			</SourceData>
+		</Surface>
+	</Surfaces>
+</LandXML>

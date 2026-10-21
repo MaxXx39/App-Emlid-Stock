@@ -9,7 +9,8 @@ import java.text.Normalizer
  * repris de l'appli topo V1 (src/export/dxf.js). Coordonnées MN95 : X = Est, Y = Nord, Z = altitude (m).
  *
  * Calques : POINTS (points levés), NOMS (nom de chaque point), CONTOURS (bas de talus, 3D),
- * LIGNES_RUPTURE (hauts de talus, 3D), TRIANGLES_<stock> (faces 3D du dessus si le volume est calculé),
+ * LIGNES_RUPTURE (hauts de talus, 3D), TRIANGLES_<stock> (faces 3D du dessus si le volume est calculé,
+ * ou de la surface levée),
  * COURBES (courbes de niveau, si demandées).
  */
 
@@ -33,7 +34,7 @@ fun genererDxf(stocks: List<StockExporte>, equidistance: Double? = null): String
             val sommets = noms.mapNotNull { parNom[it] }
             if (sommets.size >= 2) entites.addAll(polyligne3D(sommets.map { Triple(it.est, it.nord, it.altitude) }, fermee, "LIGNES_RUPTURE"))
         }
-        val triangles = s.resultat?.takeIf { it.erreur == null }?.trianglesDessus.orEmpty()
+        val triangles = s.triangles
         if (triangles.isNotEmpty()) {
             val calque = nomDeCalque("TRIANGLES_${s.nom}")
             calques[calque] = 8
