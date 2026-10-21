@@ -2,7 +2,7 @@
 
 Appli Android de levé de stocks en RTK avec un GNSS Emlid Reach RX2.
 
-**Version actuelle : 0.2 - position en coordonnées suisses** (étape 2 du cahier des charges). Elle ne lève pas encore de stocks : elle affiche la position du RX2 en **MN95 (Est, Nord)** et en **altitude RAN95 (LHN95)**, l'état de la compensation d'inclinaison et le statut RTK.
+**Version actuelle : 0.3 - levé des stocks** (étape 3 du cahier des charges) : chantiers, stocks, trois modes de levé (bas de talus B1…, haut de talus H1-1…, points caractéristiques C1…), prise de point en **MN95 / altitude RAN95 (LHN95)**, refusée tant que le RTK n'est pas fixe ou que l'inclinaison n'est pas prête. Pas encore de carte, de volume ni d'export.
 
 ## Installer l'appli sur le téléphone
 
@@ -18,18 +18,26 @@ Pour une mise à jour : refaire les étapes 1 à 3, puis **Mettre à jour**. Les
 ## Préparer (une seule fois)
 
 1. **Appairer le RX2** avec le téléphone : Réglages Android → Bluetooth → choisir le RX2.
-2. Ouvrir l'appli et accepter l'autorisation « appareils à proximité » (Bluetooth).
-3. Toucher « Modifier la hauteur de canne » et taper la hauteur réglée dans Emlid Flow (rappel seulement).
+2. Dans **Emlid Flow** : Récepteurs → Intégration à des logiciels externes → activer **« Envoyer la position compensée »** (indispensable : sinon le RX2 envoie la position de l'antenne).
+3. Ouvrir Emlid Stock et accepter l'autorisation « appareils à proximité » (Bluetooth).
+4. « Modifier la hauteur de canne » : taper la hauteur réglée dans Emlid Flow (rappel seulement).
 
-Plus besoin des options pour développeurs ni de la « position fictive ».
+## Lever un stock
 
-## Utiliser
+1. Lancer **Emlid Flow**, se connecter au RX2 avec swipos, attendre le RTK fixe. Laisser Emlid Flow ouvert (il envoie les corrections au RX2).
+2. Dans Emlid Stock : « Choisir le récepteur » → le RX2 (les fois suivantes : « Reconnecter »).
+3. En haut, deux bandeaux : **RTK FIXE** et **Inclinaison PRÊTE** doivent être verts. Si l'inclinaison n'est pas prête, bougez un peu la canne.
+4. « Nouveau chantier » (une fois), puis « + Nouveau stock » : le nom proposé (date chantier numéro) peut être modifié.
+5. Choisir le mode : **Bas de talus** (B1, B2…), **Haut de talus** (H1-1, H1-2… ; « Nouvelle ligne » passe à H2-1), **Point caractéristique** (C1, C2…).
+6. **PRENDRE LE POINT** : le point est pris à l'instant du clic. Le bouton est bloqué tant que le RTK n'est pas fixe ou que l'inclinaison n'est pas prête.
+7. « Annuler le dernier point » efface le dernier point ; toucher un point dans la liste permet de le supprimer.
+8. Un stock se reprend plus tard : il suffit de le toucher dans la liste ; la numérotation continue.
 
-1. Lancer **Emlid Flow**, se connecter au RX2 avec les corrections swipos, attendre le RTK fixe. Laisser Emlid Flow ouvert (il envoie les corrections au RX2).
-2. Lancer **Emlid Stock**, « Choisir le récepteur » → le RX2 (ensuite : « Reconnecter »).
-3. En haut : bandeau vert « RTK FIXE », puis E, N, H (MN95 / RAN95), à comparer avec Emlid Flow.
-4. **Test d'inclinaison** : pointe de canne sur un point fixe, canne droite, « Fixer le départ ». Incliner la canne (15° à 30°) dans plusieurs directions sans bouger la pointe : l'écart doit rester de quelques centimètres.
-5. **Journal** : « Ajouter la note » enregistre la note avec la position actuelle (pratique sur un point connu). « Enregistrer… » → Téléchargements, puis envoyer le fichier à Claude.
+Les levés sont enregistrés sur le téléphone à chaque point. (Export et synchronisation : plus tard.)
+
+## Diagnostic
+
+Accueil → « Diagnostic et journal » : position détaillée, test d'inclinaison, journal avec notes, à enregistrer et envoyer à Claude en cas de problème.
 
 ## Pour les développeurs
 

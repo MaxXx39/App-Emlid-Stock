@@ -16,15 +16,19 @@ Ce fichier est lu par Claude Code au début de chaque session. Le cahier des cha
 
 Appli Android **native en Kotlin** pour lever des stocks de matériaux avec un GNSS **Emlid Reach RX2** en RTK et calculer leur volume sur place. Distincte de l'appli topo PWA (dépôt `app-topo`), qui reste un projet à part.
 
-- Position : flux **NMEA Bluetooth** lu directement sur le RX2 (GGA : position du bout de canne, compensée, et statut RTK ; ETC : état de la compensation). Emlid Flow reste ouvert seulement pour envoyer les corrections swipos au RX2. (Le cahier des charges prévoyait la mock location : abandonnée après le test terrain, voir § 4.)
+- Position : flux **NMEA Bluetooth** lu directement sur le RX2, avec le réglage Emlid Flow « Envoyer la position compensée » activé (GGA : position du bout de canne, compensée, **seulement quand ETC est à l'état 30**, et statut RTK ; ETC : état de la compensation). Emlid Flow reste ouvert seulement pour envoyer les corrections swipos au RX2. (Le cahier des charges prévoyait la mock location : abandonnée après le test terrain, voir § 4.)
 - V1 = **mode stock** seulement ; l'architecture doit pouvoir accueillir d'autres modes plus tard (sans les coder).
 - Hors V1 : autres modes de levé, mode hors ligne, moyenne de plusieurs secondes par point.
 
 ## 3. Étapes de construction (dans l'ordre)
 
 1. **Prototype de test terrain** : affiche position, statut RTK et message ETC ; sert à vérifier les 5 points ci-dessous. ← **fait (version 0.1), testé le 20.10.2026**
-2. Réception de la position et conversion en MN95 avec altitudes RAN95 (voir § 5). ← **fait (version 0.2), en attente du test terrain**
-3. Chantiers, stocks, trois modes de levé (bas de talus B1…, haut de talus H1-1…, points caractéristiques C1… ou 1…), bouton de prise de point bloqué hors fix, annulation.
+2. Réception de la position et conversion en MN95 avec altitudes RAN95 (voir § 5). ← **fait (version 0.2), validé sur le terrain le 21.10.2026**
+3. Chantiers, stocks, trois modes de levé (bas de talus B1…, haut de talus H1-1…, points caractéristiques C1…), bouton de prise de point bloqué hors fix **ou inclinaison pas prête**, annulation. ← **fait (version 0.3), en attente du test terrain**
+   - Décisions (21.10.2026) : points caractéristiques **C1, C2…** ; nom de stock proposé **« date chantier numéro »** (ex. « 2026-10-21 Gravière 1 », modifiable) ; numéro suivant = plus grand existant + 1 dans le groupe ; « Nouvelle ligne » ne crée pas de ligne vide.
+   - Bandeaux toujours visibles : « RTK » et « Inclinaison PRÊTE / NON PRÊTE » (position grisée « antenne, pas le bout de canne » si pas prête).
+   - Suppression d'un point : pour l'instant en touchant le point dans la liste (sur la carte à l'étape 4).
+   - Données : fichier `leves.json` dans le dossier privé de l'appli (classe `Depot`, écriture via fichier temporaire). Pas encore d'export ni de synchro (étape 7).
 4. Carte 2D en cours de levé avec fond swisstopo (SWISSIMAGE).
 5. Triangulation et calcul du volume (même méthode que l'appli topo : bas de talus = contour et surface de référence ; bas et hauts de talus = lignes de rupture), comparé à Mensura (tolérance 0,5 %).
 6. Vues de contrôle : 2D, 3D, courbes de niveau, tranches de couleur.
@@ -62,7 +66,23 @@ Bug du prototype 0.1 : le point 1 affichait « OUI » avec les positions du GPS 
 - **Position : lecture directe du NMEA Bluetooth du RX2** (plan B du cahier des charges). Pas de mock location. Emlid Flow reste ouvert seulement pour envoyer les corrections swipos au RX2. Statut RTK et position du bout de canne lus dans le GGA, hauteur ellipsoïdale = altitude GGA + séparation.
 - **Hauteur de canne** : saisie une fois dans l'appli, affichée comme **rappel seulement** (le RX2 l'applique déjà ; elle n'entre dans aucun calcul).
 - Firmware du RX2 : 2.11 ou plus récent (corrige l'écart GGA / RMC avec la compensation).
-- **À reconfirmer** : la compensation dans le GGA. L'utilisateur ne sait plus si la pointe de la canne restait immobile pendant le test d'inclinaison ; refaire un test court (pointe sur un point fixe, canne inclinée dans plusieurs directions).
+- ~~À reconfirmer : la compensation dans le GGA.~~ → **infirmé par le test n° 2**, voir ci-dessous.
+
+### Résultats du test terrain n° 2 (20.10.2026, version 0.2, `exemples/journal-rx2_2026-10-20_10h08.txt`)
+
+Sur le point 1 (`exemples/test_bureau_pix4d.csv` : 2509500.921 / 1141119.690 / 414.856), canne verticale :
+- **Plan** : écart d'environ 1 cm → la conversion MN95 est confirmée en conditions réelles.
+- **Hauteur** : la position GGA est **1.96 m plus haute** que le point (environ la hauteur de canne + décalage de l'antenne).
+- **Inclinaison** : même avec ETC à l'état 30, la position GGA bouge comme la tête de canne (jusqu'à 85 cm pour 26°, hauteur qui baisse en cos). **Le GGA reçu en Bluetooth est donc la position de l'antenne, sans hauteur de canne ni compensation.** (Le test n° 1 avait été mal interprété : la canne ne bougeait sans doute pas.)
+- **ETC** : le champ 5 est bien la direction de l'inclinaison (azimut vers lequel la tête de canne part) et le champ 6 l'angle. En calculant `bout = antenne − L × (sin i · sin d, sin i · cos d, cos i)` avec L = 1.962 m, on retrouve le point à 1 à 3 cm près quand la canne est immobile (plus d'écart pendant les mouvements rapides). Calcul fait à titre d'analyse, **pas validé** et pas codé. Hauteur de canne réglée dans Emlid Flow pendant ce test : 1.85 m ; décalage d'antenne du RX2 selon Emlid : 147.1 mm (L1).
+
+### Résultats du test terrain n° 3 (21.10.2026, `exemples/journal-rx2_2026-10-21_14h04.txt`, `exemples/test_appli_2026-10-21.csv`)
+
+Emlid Flow mis à jour ; réglage activé : **Récepteurs → Intégration à des logiciels externes → « Envoyer la position compensée »**. Point de contrôle : point 1 levé avec le RX2 dans Emlid Flow au même moment (2503979.890 / 1137570.674 / 459.605, hauteur d'antenne 1.995 m).
+
+- **ETC à l'état 30** (compensation prête) : le GGA donne **le bout de canne compensé**. Canne inclinée de 12° à 28° sur le point : écart 0 à 5 cm en plan pendant les mouvements, quelques mm canne immobile, **hauteur à ± 6 mm** (ex. 15.7° : dE +0.2, dN −0.4 cm, dH 0.0). Les 3 « départs » notés : 459.602 / 459.606 / 459.607 m pour 459.605 m.
+- **ETC à l'état 20** (Emlid Flow affiche « CI NON PRÊTE ») : le GGA redevient **la position de l'antenne** (environ 1.99 m plus haut = canne 1.85 + 0.147, et elle bouge avec l'inclinaison). Le passage d'un mode à l'autre est immédiat.
+- **Règle à appliquer** : un point n'est valable que si RTK fixe **et** ETC état 30. Sinon, la position n'est pas celle du bout de canne.
 
 ## 5. Coordonnées et altitudes - méthode validée (20.10.2026)
 
@@ -82,7 +102,8 @@ Méthode (validée par l'utilisateur, code dans `noyau/.../coordonnees/`) :
 - Kotlin, Android natif, **sans bibliothèque** pour l'instant (écrans construits en code, `Activity` standard). minSdk 26 (Android 8), targetSdk 35.
 - Deux modules Gradle :
   - `noyau/` : calculs en Kotlin pur (lecture NMEA, conversion MN95 / RAN95 avec la grille `src/main/resources/geoide/chgeo2004_lhn95.grille`, plus tard volumes), **testés automatiquement** (`./gradlew :noyau:test`).
-  - `app/` : l'appli Android (écran `EcranPosition`, Bluetooth SPP).
+  - `noyau/.../leve/` : modèle des chantiers, stocks et points, nommage, règle de prise de point (`autoriserPriseDePoint`).
+  - `app/` : l'appli Android : une seule activité `EcranPrincipal` (bandeaux RTK / inclinaison) et trois vues `VueAccueil`, `VueLeve`, `VueDiagnostic` ; `EtatRecepteur` (données reçues), `Depot` (enregistrement), `RecepteurBluetooth` (SPP).
 - Fabrication par **GitHub Actions** (`.github/workflows/apk.yml`) : tests + APK à chaque envoi ; sur `main`, l'APK est publié dans la release « Dernière version » (tag `derniere-version`).
 - Signature : clé fixe `app/cle-signature.jks` (mot de passe dans `app/build.gradle.kts`), pour que les mises à jour s'installent par-dessus. Clé d'usage personnel uniquement.
 - Dans le cloud Claude Code, `dl.google.com` est bloqué : le SDK Android n'est pas disponible localement. On teste `noyau` localement (miroir Maven `maven-central.storage-download.googleapis.com` si Maven Central répond 429) et on peut vérifier la compilation du code Android contre `org.robolectric:android-all` ; la vraie fabrication de l'APK se fait dans GitHub Actions.
