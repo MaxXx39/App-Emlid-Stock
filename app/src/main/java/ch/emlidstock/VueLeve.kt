@@ -26,7 +26,11 @@ import ch.emlidstock.noyau.volume.calculerVolumeStock
  * annulation du dernier point, carte du levé et liste des points (toucher un point pour le modifier
  * ou le supprimer), calcul du volume, export des points en TXT.
  */
-class VueLeve(private val ecran: EcranPrincipal, private val stock: Stock) : Vue {
+class VueLeve(
+    private val ecran: EcranPrincipal,
+    private val stock: Stock,
+    volumeDejaCalcule: ResultatVolumeStock? = null,
+) : Vue {
 
     private val ui = ecran.ui
     private var mode = ModeLeve.BAS_DE_TALUS
@@ -48,7 +52,10 @@ class VueLeve(private val ecran: EcranPrincipal, private val stock: Stock) : Vue
     }
     private val boutonFermerLigne = ui.bouton("") { basculerFermetureLigne() }
     private val texteVolume = ui.zoneTexte(14f)
-    private var resultatVolume: ResultatVolumeStock? = null
+    private var resultatVolume: ResultatVolumeStock? = volumeDejaCalcule
+    private val boutonControle = ui.bouton("Vues de contrôle (2D / 3D)") {
+        resultatVolume?.takeIf { it.erreur == null }?.let { ecran.afficherControle(stock, it) }
+    }
     private val texteCompteurs = ui.texte(14f)
     private val listePoints = LinearLayout(ecran).apply { orientation = LinearLayout.VERTICAL }
 
@@ -80,6 +87,7 @@ class VueLeve(private val ecran: EcranPrincipal, private val stock: Stock) : Vue
         colonne.addView(ui.titre("Volume"))
         colonne.addView(ui.bouton("Calculer le volume") { calculerVolume() })
         colonne.addView(texteVolume)
+        colonne.addView(boutonControle)
 
         colonne.addView(ui.titre("Points levés"))
         colonne.addView(texteCompteurs)
@@ -316,7 +324,10 @@ class VueLeve(private val ecran: EcranPrincipal, private val stock: Stock) : Vue
 
     private fun afficherVolume() {
         val r = resultatVolume
-        carte.carte.triangles = if (r != null && r.erreur == null) r.trianglesDessus else emptyList()
+        val volumeValable = r != null && r.erreur == null
+        carte.carte.triangles = if (volumeValable) r!!.trianglesDessus else emptyList()
+        carte.carte.trianglesEcart = if (volumeValable) r!!.trianglesEcart else emptyList()
+        boutonControle.visibility = if (volumeValable) View.VISIBLE else View.GONE
         texteVolume.setTextColor(if (r?.erreur != null) EcranPrincipal.ROUGE else Color.BLACK)
         texteVolume.text = when {
             r == null -> "Touchez « Calculer le volume » quand le levé est terminé.\n" +

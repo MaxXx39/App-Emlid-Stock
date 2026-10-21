@@ -19,6 +19,11 @@ data class ResultatVolume(
     var surfaceRemblai: Double = 0.0,
     var surfaceDeblai: Double = 0.0,
     var surfaceNonCouverte: Double = 0.0,
+    /**
+     * Petits triangles de la superposition, où « altitude » = écart dessus − base (m,
+     * positif = remblai, négatif = déblai). Ils servent aux couleurs remblai / déblai.
+     */
+    val trianglesEcart: MutableList<Triangle> = mutableListOf(),
 )
 
 /** Volume entre les triangles du dessus et ceux de la base, sur l'emprise des triangles du dessus. */
@@ -45,6 +50,15 @@ fun volumeEntreSurfaces(trianglesDessus: List<Triangle>, trianglesBase: List<Tri
             for (i in 1 until morceau.size - 1) {
                 val aire = kotlin.math.abs(aireTriangle(morceau[0], morceau[i], morceau[i + 1]))
                 ajouterPrisme(resultat, aire, ecarts[0], ecarts[i], ecarts[i + 1])
+                if (aire > 1e-9) {
+                    resultat.trianglesEcart.add(
+                        Triangle(
+                            Sommet("", morceau[0].est, morceau[0].nord, ecarts[0]),
+                            Sommet("", morceau[i].est, morceau[i].nord, ecarts[i]),
+                            Sommet("", morceau[i + 1].est, morceau[i + 1].nord, ecarts[i + 1]),
+                        ),
+                    )
+                }
             }
         }
         resultat.surfaceNonCouverte += maxOf(aireDessus - aireCouverte, 0.0)
