@@ -7,6 +7,9 @@
     <!-- Bluetooth : Android 12 et plus récent -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
+    <!-- Internet : fonds de carte swisstopo -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
 
     <application

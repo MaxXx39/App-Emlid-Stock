@@ -8,13 +8,14 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import ch.emlidstock.noyau.leve.ModeLeve
+import ch.emlidstock.noyau.leve.PointLeve
 import ch.emlidstock.noyau.leve.Stock
 import ch.emlidstock.noyau.leve.preparerPoint
 
 /**
  * Écran de levé d'un stock : choix du mode (bas de talus, haut de talus, point caractéristique),
  * nom du prochain point, bouton « Prendre le point » (bloqué hors RTK fixe ou inclinaison pas prête),
- * annulation du dernier point, liste des points (toucher un point pour le supprimer).
+ * annulation du dernier point, carte du levé et liste des points (toucher un point pour le supprimer).
  */
 class VueLeve(private val ecran: EcranPrincipal, private val stock: Stock) : Vue {
 
@@ -22,7 +23,10 @@ class VueLeve(private val ecran: EcranPrincipal, private val stock: Stock) : Vue
     private var mode = ModeLeve.BAS_DE_TALUS
 
     private val texteTitre = ui.titre("")
-    private val textePosition = ui.zoneTexte(20f)
+    private val textePosition = ui.zoneTexte(16f)
+    private val carte = CarteAvecBoutons(ecran).also { c ->
+        c.carte.quandToucherPoint = { point -> demanderSuppression(point) }
+    }
     private val boutonsModes = ModeLeve.values().associateWith { m -> ui.bouton(m.libelle) { choisirMode(m) } }
     private val ligneHaut = LinearLayout(ecran).apply { orientation = LinearLayout.HORIZONTAL }
     private val texteLigneHaut = ui.texte(16f)
@@ -43,6 +47,9 @@ class VueLeve(private val ecran: EcranPrincipal, private val stock: Stock) : Vue
             ui.bouton("← Stocks") { ecran.afficherAccueil() },
             ui.bouton("Renommer") { renommer() },
         ))
+        // Carte : environ 45 % de la hauteur de l'écran (comme dans l'appli topo V1).
+        val hauteurCarte = (ecran.resources.displayMetrics.heightPixels * 0.45).toInt()
+        colonne.addView(carte.racine, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, hauteurCarte))
         colonne.addView(textePosition)
 
         colonne.addView(ui.titre("Mode de levé"))
@@ -59,7 +66,7 @@ class VueLeve(private val ecran: EcranPrincipal, private val stock: Stock) : Vue
 
         colonne.addView(ui.titre("Points levés"))
         colonne.addView(texteCompteurs)
-        colonne.addView(ui.texte(12f).apply { text = "Toucher un point pour le supprimer." })
+        colonne.addView(ui.texte(12f).apply { text = "Toucher un point (ici ou sur la carte) pour le supprimer." })
         colonne.addView(listePoints)
         addView(colonne)
     }
@@ -74,6 +81,9 @@ class VueLeve(private val ecran: EcranPrincipal, private val stock: Stock) : Vue
         val (textePos, couleur) = ecran.texteEtCouleurPosition()
         textePosition.text = textePos
         textePosition.setTextColor(couleur)
+        carte.carte.position = ecran.recepteur.dernierePosition
+        carte.carte.positionFiable = ecran.recepteur.derniereCompensation?.estActive == true
+        carte.carte.invalidate()
 
         val autorisation = ecran.recepteur.autorisation()
         boutonPrendre.isEnabled = autorisation.autorise
@@ -107,6 +117,8 @@ class VueLeve(private val ecran: EcranPrincipal, private val stock: Stock) : Vue
             "Haut de talus : ${stock.nombreDePoints(ModeLeve.HAUT_DE_TALUS)} ($nbLignes lignes)  ·  " +
             "Caractéristiques : ${stock.nombreDePoints(ModeLeve.POINT_CARACTERISTIQUE)}"
 
+        carte.carte.points = stock.points.toList()
+
         // Les points les plus récents en premier.
         listePoints.removeAllViews()
         for (point in stock.points.asReversed()) {
@@ -117,18 +129,23 @@ class VueLeve(private val ecran: EcranPrincipal, private val stock: Stock) : Vue
                     point.nom, nombre(point.est, 3), nombre(point.nord, 3), nombre(point.altitude, 3),
                 )
                 setPadding(0, ui.dp(6), 0, ui.dp(6))
-                setOnClickListener {
-                    ecran.confirmer("Supprimer ${point.nom} ?", "Le point sera effacé du stock.") {
-                        stock.supprimerPoint(point.nom)
-                        ecran.journal.ajouter("NOTE", "Point ${point.nom} supprimé (stock ${stock.nom})")
-                        ecran.enregistrerLeves()
-                        remplir()
-                    }
-                }
+                setOnClickListener { demanderSuppression(point) }
             }
             listePoints.addView(ligne)
         }
         rafraichir()
+    }
+
+    private fun demanderSuppression(point: PointLeve) {
+        ecran.confirmer(
+            "Supprimer ${point.nom} ?",
+            "E ${nombre(point.est, 3)}  N ${nombre(point.nord, 3)}  H ${nombre(point.altitude, 3)}\nLe point sera effacé du stock.",
+        ) {
+            stock.supprimerPoint(point.nom)
+            ecran.journal.ajouter("NOTE", "Point ${point.nom} supprimé (stock ${stock.nom})")
+            ecran.enregistrerLeves()
+            remplir()
+        }
     }
 
     private fun choisirMode(nouveauMode: ModeLeve) {

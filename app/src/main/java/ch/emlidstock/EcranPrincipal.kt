@@ -11,6 +11,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Typeface
+import android.net.http.HttpResponseCache
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -26,6 +27,7 @@ import android.widget.TextView
 import android.widget.Toast
 import ch.emlidstock.noyau.leve.Stock
 import ch.emlidstock.noyau.nmea.libelleQualite
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -61,6 +63,13 @@ class EcranPrincipal : Activity() {
         super.onCreate(etatSauve)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         journal.ajouter("INFO", "Démarrage : ${infosAppareil()}")
+
+        // Cache internet sur le téléphone (50 Mo) : les tuiles swisstopo déjà vues se rechargent sans réseau.
+        try {
+            HttpResponseCache.install(File(cacheDir, "tuiles"), 50L * 1024 * 1024)
+        } catch (erreur: Exception) {
+            journal.ajouter("INFO", "Cache des tuiles indisponible : ${erreur.message}")
+        }
 
         depot = Depot(filesDir)
         depot.charger()?.let { message(it) }
