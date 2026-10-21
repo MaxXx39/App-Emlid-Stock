@@ -15,7 +15,8 @@
         android:theme="@android:style/Theme.Material.Light.DarkActionBar">
 
         <activity
-            android:name=".EcranPosition"
+            android:name=".EcranPrincipal"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|keyboard"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

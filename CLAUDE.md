@@ -23,8 +23,12 @@ Appli Android **native en Kotlin** pour lever des stocks de matériaux avec un G
 ## 3. Étapes de construction (dans l'ordre)
 
 1. **Prototype de test terrain** : affiche position, statut RTK et message ETC ; sert à vérifier les 5 points ci-dessous. ← **fait (version 0.1), testé le 20.10.2026**
-2. Réception de la position et conversion en MN95 avec altitudes RAN95 (voir § 5). ← **fait (version 0.2), en attente du test terrain**
-3. Chantiers, stocks, trois modes de levé (bas de talus B1…, haut de talus H1-1…, points caractéristiques C1… ou 1…), bouton de prise de point bloqué hors fix, annulation.
+2. Réception de la position et conversion en MN95 avec altitudes RAN95 (voir § 5). ← **fait (version 0.2), validé sur le terrain le 21.10.2026**
+3. Chantiers, stocks, trois modes de levé (bas de talus B1…, haut de talus H1-1…, points caractéristiques C1…), bouton de prise de point bloqué hors fix **ou inclinaison pas prête**, annulation. ← **fait (version 0.3), en attente du test terrain**
+   - Décisions (21.10.2026) : points caractéristiques **C1, C2…** ; nom de stock proposé **« date chantier numéro »** (ex. « 2026-10-21 Gravière 1 », modifiable) ; numéro suivant = plus grand existant + 1 dans le groupe ; « Nouvelle ligne » ne crée pas de ligne vide.
+   - Bandeaux toujours visibles : « RTK » et « Inclinaison PRÊTE / NON PRÊTE » (position grisée « antenne, pas le bout de canne » si pas prête).
+   - Suppression d'un point : pour l'instant en touchant le point dans la liste (sur la carte à l'étape 4).
+   - Données : fichier `leves.json` dans le dossier privé de l'appli (classe `Depot`, écriture via fichier temporaire). Pas encore d'export ni de synchro (étape 7).
 4. Carte 2D en cours de levé avec fond swisstopo (SWISSIMAGE).
 5. Triangulation et calcul du volume (même méthode que l'appli topo : bas de talus = contour et surface de référence ; bas et hauts de talus = lignes de rupture), comparé à Mensura (tolérance 0,5 %).
 6. Vues de contrôle : 2D, 3D, courbes de niveau, tranches de couleur.
@@ -98,7 +102,8 @@ Méthode (validée par l'utilisateur, code dans `noyau/.../coordonnees/`) :
 - Kotlin, Android natif, **sans bibliothèque** pour l'instant (écrans construits en code, `Activity` standard). minSdk 26 (Android 8), targetSdk 35.
 - Deux modules Gradle :
   - `noyau/` : calculs en Kotlin pur (lecture NMEA, conversion MN95 / RAN95 avec la grille `src/main/resources/geoide/chgeo2004_lhn95.grille`, plus tard volumes), **testés automatiquement** (`./gradlew :noyau:test`).
-  - `app/` : l'appli Android (écran `EcranPosition`, Bluetooth SPP).
+  - `noyau/.../leve/` : modèle des chantiers, stocks et points, nommage, règle de prise de point (`autoriserPriseDePoint`).
+  - `app/` : l'appli Android : une seule activité `EcranPrincipal` (bandeaux RTK / inclinaison) et trois vues `VueAccueil`, `VueLeve`, `VueDiagnostic` ; `EtatRecepteur` (données reçues), `Depot` (enregistrement), `RecepteurBluetooth` (SPP).
 - Fabrication par **GitHub Actions** (`.github/workflows/apk.yml`) : tests + APK à chaque envoi ; sur `main`, l'APK est publié dans la release « Dernière version » (tag `derniere-version`).
 - Signature : clé fixe `app/cle-signature.jks` (mot de passe dans `app/build.gradle.kts`), pour que les mises à jour s'installent par-dessus. Clé d'usage personnel uniquement.
 - Dans le cloud Claude Code, `dl.google.com` est bloqué : le SDK Android n'est pas disponible localement. On teste `noyau` localement (miroir Maven `maven-central.storage-download.googleapis.com` si Maven Central répond 429) et on peut vérifier la compilation du code Android contre `org.robolectric:android-all` ; la vraie fabrication de l'APK se fait dans GitHub Actions.

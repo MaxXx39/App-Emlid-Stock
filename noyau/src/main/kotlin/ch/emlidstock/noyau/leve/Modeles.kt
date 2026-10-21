@@ -1,0 +1,45 @@
+package ch.emlidstock.noyau.leve
+
+/**
+ * Type de levé. La V1 ne connaît que le levé de stock ; d'autres types pourront s'ajouter ici
+ * plus tard (le reste de l'appli lit ce champ pour savoir quoi faire).
+ */
+enum class TypeLeve { STOCK }
+
+/** Les trois modes de levé d'un stock, avec la lettre des noms de points. */
+enum class ModeLeve(val libelle: String, val lettre: String) {
+    BAS_DE_TALUS("Bas de talus", "B"),
+    HAUT_DE_TALUS("Haut de talus", "H"),
+    POINT_CARACTERISTIQUE("Point caractéristique", "C"),
+}
+
+/**
+ * Un point levé. Coordonnées en MN95 (m) et altitude RAN95 / LHN95 (m) ;
+ * on garde aussi la position GNSS d'origine (degrés, hauteur ellipsoïdale en m)
+ * et la qualité au moment de la mesure.
+ *
+ * - [ligne] : numéro de la ligne de haut de talus (H2-5 → 2), null pour B et C.
+ * - [numero] : numéro du point dans son groupe (H2-5 → 5, B7 → 7).
+ */
+data class PointLeve(
+    val nom: String,
+    val mode: ModeLeve,
+    val ligne: Int?,
+    val numero: Int,
+    val est: Double,
+    val nord: Double,
+    val altitude: Double,
+    val latitudeDeg: Double,
+    val longitudeDeg: Double,
+    val hauteurEllipsoidaleM: Double,
+    val horodatageMs: Long,
+    val qualiteGga: Int,
+    val nbSatellites: Int?,
+    val hdop: Double?,
+    val ageCorrectionsS: Double?,
+    val stationReference: String,
+    val inclinaisonDeg: Double?,
+)
+
+/** Un chantier : il contient plusieurs stocks. */
+data class Chantier(val id: String, var nom: String, val creeLeMs: Long)
