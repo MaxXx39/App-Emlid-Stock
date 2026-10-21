@@ -59,10 +59,12 @@ L'utilisateur veut **toutes** les fonctions de l'appli topo V1 (dépôt `app-top
    - Décisions (21.10.2026) : rôles donnés par **plages de noms** comme la V1 (« b100 à b116 » ; plusieurs lignes H séparées par « ; »), avec les **séries détectées** proposées en un toucher ; **noms d'origine gardés** (les points ajoutés ensuite prennent les noms B…, H…, C… libres) ; **plusieurs stocks par fichier** (le fichier est lu une fois, chaque stock garde son contour, ses lignes et les autres points du fichier situés dans son contour, en C).
    - Code repris de la V1 avec ses tests : `noyau/.../importation/LecturePoints.kt` (import-points.js), `Noms.kt` (noms.js), `StockImporte.kt` ; écran `VueImport` (accueil → « Importer des points… »). Points importés : qualité 0, « importé : fichier » (pas de position GNSS d'origine).
    - Test de bout en bout : le levé du 20/05 (`exemples/stock_2026-05-20.csv` et `stock_export_2026-05-20.txt`, copiés de app-topo) importé en 3 stocks redonne 1636.197 / 648.979 / 372.201 m³.
-9. Base = autre surface (mode B) : surfaces importées (LandXML Mensura, DXF faces 3D) ou levées (terrain naturel) ; surfaces libres (sans contour, triangles supprimés au doigt).
-10. Comparer deux levés (même stock à deux dates) : volume ajouté / enlevé, sur tout ou dans un contour.
-11. Photos du stock avec légende, imprimées dans le PDF.
-12. Annuler / Rétablir et bulles d'aide activables.
+9. ~~Base = autre surface (mode B) : surfaces importées (LandXML Mensura, DXF faces 3D) ou levées (terrain naturel) ; surfaces libres (sans contour, triangles supprimés au doigt).~~ ← **arrêtée**
+10. ~~Comparer deux levés (même stock à deux dates) : volume ajouté / enlevé, sur tout ou dans un contour.~~ ← **arrêtée**
+11. ~~Photos du stock avec légende, imprimées dans le PDF.~~ ← **arrêtée**
+12. ~~Annuler / Rétablir et bulles d'aide activables.~~ ← **arrêtée**
+
+**Changement de direction (21.10.2026) : Emlid Stock s'arrête à l'étape 8.** Les étapes 9 à 12 ne seront pas faites ici. La V1 (dépôt `app-topo`) existe maintenant aussi en **APK Android « Topo »** (dossier `app-topo/android/`, la V1 à l'identique dans une WebView), et c'est elle qui recevra le **levé direct avec le RX2** (lecture NMEA Bluetooth, règle RTK fixe + ETC état 30, conversion MN95 / RAN95 : à reprendre de ce dépôt, `noyau/.../nmea/`, `noyau/.../coordonnees/` et la grille CHGeo2004, avec leurs tests). Ce dépôt sert de référence pour ce code validé sur le terrain ; ne plus y ajouter de fonctions sans demande de l'utilisateur.
 
 L'étape 6 reprend aussi les vues de la V1 (couleurs selon l'altitude, courbes de niveau, remblai rouge / déblai jaune par paliers) ; l'étape 7 les exports de la V1 (PDF avec cartouche et calques, CSV, DXF R12, LandXML) en plus d'Excel et Google Drive, et la passerelle V1. Toujours reprendre les formules et les tests de la V1 (`app-topo/src/topo`, `app-topo/tests`) plutôt que de réinventer.
 
