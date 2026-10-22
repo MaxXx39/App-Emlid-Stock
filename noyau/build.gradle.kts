@@ -17,6 +17,10 @@ kotlin {
 }
 
 dependencies {
+    // org.json (lecture et écriture de JSON) : déjà fourni par Android dans le téléphone,
+    // donc seulement « pour compiler » ici ; et pour de vrai dans les tests sur ordinateur.
+    compileOnly("org.json:json:20240303")
+    testImplementation("org.json:json:20240303")
     testImplementation(kotlin("test"))
 }
 

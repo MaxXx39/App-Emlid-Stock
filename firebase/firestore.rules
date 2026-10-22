@@ -1,0 +1,44 @@
+// Règles d'accès de la base Firestore du projet Firebase « perrin-topo ».
+// Elles sont vérifiées par le serveur de Google : un appareil ne peut pas les contourner.
+// À copier dans la console Firebase : Firestore > Règles > coller ce texte > « Publier ».
+//
+// - admins/<identifiant> : les administrateurs, créés à la main dans la console Firebase.
+// - appareils/<identifiant> : un document par appareil (tablette, téléphone, navigateur).
+//   L'appareil crée et met à jour sa fiche (code, modèle, appli, version, vu le),
+//   mais ne peut pas se donner un nom ni lire les fiches des autres.
+//   L'administrateur peut tout lire, nommer et supprimer.
+// - Tout le reste est interdit (les projets viendront à l'étape suivante).
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function connecte() {
+      return request.auth != null;
+    }
+
+    function estAdmin() {
+      return connecte() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // Champs que l'appareil a le droit d'écrire lui-même.
+    function champsDeLAppareil() {
+      return ['code', 'modele', 'appli', 'version', 'vuLe'];
+    }
+
+    match /admins/{uid} {
+      allow read: if (connecte() && request.auth.uid == uid) || estAdmin();
+      allow write: if false;
+    }
+
+    match /appareils/{uid} {
+      allow read: if (connecte() && request.auth.uid == uid) || estAdmin();
+      allow create: if (connecte() && request.auth.uid == uid
+                        && request.resource.data.keys().hasOnly(champsDeLAppareil()))
+                    || estAdmin();
+      allow update: if (connecte() && request.auth.uid == uid
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(champsDeLAppareil()))
+                    || estAdmin();
+      allow delete: if estAdmin();
+    }
+  }
+}

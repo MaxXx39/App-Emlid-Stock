@@ -71,6 +71,19 @@ L'utilisateur veut **toutes** les fonctions de l'appli topo V1 (dépôt `app-top
 
 L'étape 6 reprend aussi les vues de la V1 (couleurs selon l'altitude, courbes de niveau, remblai rouge / déblai jaune par paliers) ; l'étape 7 les exports de la V1 (PDF avec cartouche et calques, CSV, DXF R12, LandXML) en plus d'Excel et Google Drive, et la passerelle V1. Toujours reprendre les formules et les tests de la V1 (`app-topo/src/topo`, `app-topo/tests`) plutôt que de réinventer.
 
+### Partage des projets entre appareils (décisions du 22.10.2026)
+
+Besoin : l'utilisateur et ses collègues (3 aujourd'hui, environ 30 plus tard) partagent les projets entre plusieurs téléphones / tablettes (APK) et l'appli navigateur (V1) ; **tout le monde modifie** ; l'utilisateur est **administrateur** et choisit **quel appareil a accès à quel projet**. Contraintes : **coût 0** (pas de carte bancaire), pas de validation de l'APK par Google, un seul compte Google (celui de l'administrateur).
+
+- **Firebase**, projet `perrin-topo`, formule gratuite **Spark** (sans carte : rien ne peut être facturé ; au-delà des limites, le service s'arrête). Firestore en `europe-west6` (Zurich), édition Standard, mode production. Pas de sauvegardes Google (payantes) ni de Storage (demande la formule Blaze) : photos réduites dans Firestore plus tard ; sauvegarde = export `.topo.json`.
+- **Sans bibliothèque Google** : appels directs aux adresses web de Firebase (API REST) avec `HttpURLConnection` et `org.json` (`noyau/.../partage/ClientFirebase.kt`). Écritures par `documents:commit` (POST). Valeurs Firestore : `ValeursFirestore.kt`.
+- **Identité par appareil** : connexion « anonyme » Firebase (aucun compte Google sur les tablettes) ; jeton de renouvellement gardé dans les préférences `partage`. Code affiché = 6 premiers caractères de l'identifiant en majuscules (`codeAppareil`).
+- **Administrateur** = un appareil dont l'identifiant est dans `admins/<identifiant>`, document créé **à la main dans la console Firebase**. Fiches `appareils/<identifiant>` : l'appareil écrit `code, modele, appli, version, vuLe` ; seul l'admin écrit `nom`, liste et supprime.
+- **Règles d'accès** : `firebase/firestore.rules`, à copier dans la console (Firestore > Règles > Publier) à chaque changement. Testées avec l'émulateur Firebase (`firebase-tools`, `firebase emulators:start --only auth,firestore`) : test `PartageTest.essaiAvecLEmulateur`, lancé seulement si `FIREBASE_EMULATEUR=127.0.0.1`.
+- Clé et identifiants du projet (google-services.json) dans `Partage.kt` : la clé n'est pas un secret (protection = règles). En-têtes `X-Android-Package` / `X-Android-Cert` envoyés au cas où la clé serait limitée à l'appli.
+- Fait (version 0.10) : connexion, code de l'appareil à l'accueil (section « Partage des projets »), écran « Administration des appareils » (nommer, supprimer). Prochaines étapes : projets (chantiers) dans Firestore avec la liste des appareils autorisés, envoi des levés, puis surfaces / volumes / mesures / photos, puis l'appli navigateur.
+- Ordre décidé ensuite : client NTRIP (connexion directe à swipos, pour se passer d'Emlid Flow une fois le RX2 réglé ; 2 connexions swipos possibles), puis prototype de guidage avec 2 RX2 (indicateur de déblai / remblai aux deux bouts d'une lame). Test à faire sur le terrain avant le NTRIP : « Forcer l'arrêt » d'Emlid Flow et vérifier que le RX2 garde ses réglages (position compensée, ETC état 30).
+
 ## 4. Points à vérifier sur le terrain (étape 1)
 
 | Point | Plan B si ça ne marche pas |

@@ -32,6 +32,8 @@ class VueAccueil(private val ecran: EcranPrincipal) : Vue {
     private val listeSurfaces = LinearLayout(ecran).apply { orientation = LinearLayout.VERTICAL }
     private val texteRecepteur = ui.zoneTexte()
     private val texteCanne = ui.zoneTexte()
+    private val textePartage = ui.zoneTexte()
+    private val boutonAdministration = ui.bouton("Administration des appareils") { ecran.afficherAdministration() }
 
     override val racine: View = ScrollView(ecran).apply {
         val colonne = ui.colonne()
@@ -69,6 +71,11 @@ class VueAccueil(private val ecran: EcranPrincipal) : Vue {
         colonne.addView(texteCanne)
         colonne.addView(ui.bouton("Modifier la hauteur de canne") { ecran.modifierHauteurCanne() })
 
+        colonne.addView(ui.titre("Partage des projets"))
+        colonne.addView(textePartage)
+        colonne.addView(ui.bouton("Réessayer la connexion") { ecran.partage.demarrer() })
+        colonne.addView(boutonAdministration)
+
         colonne.addView(ui.titre("Outils"))
         colonne.addView(ui.bouton("Diagnostic et journal") { ecran.afficherDiagnostic() })
         addView(colonne)
@@ -81,6 +88,12 @@ class VueAccueil(private val ecran: EcranPrincipal) : Vue {
     override fun rafraichir() {
         texteRecepteur.text = "État : ${ecran.recepteur.etatBluetooth}"
         texteCanne.text = "${ecran.hauteurCanneEnTexte()} — à vérifier dans Emlid Flow"
+        val partage = ecran.partage
+        textePartage.text = "Code de cet appareil : ${partage.code ?: "—"}\n" +
+            (partage.nomAppareil?.let { "Nom : $it\n" } ?: "") +
+            "État : ${partage.etat}" +
+            (partage.identifiant?.let { "\nIdentifiant : $it" } ?: "")
+        boutonAdministration.visibility = if (partage.estAdmin) View.VISIBLE else View.GONE
     }
 
     /** Réécrit le nom du chantier et la liste des stocks (après un changement). */

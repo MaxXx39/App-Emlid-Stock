@@ -55,6 +55,7 @@ class EcranPrincipal : Activity() {
     lateinit var depot: Depot
         private set
     val ui by lazy { Ui(this) }
+    val partage by lazy { Partage(this) }
 
     private val minuterie = Handler(Looper.getMainLooper())
     private lateinit var bandeauRtk: TextView
@@ -90,6 +91,7 @@ class EcranPrincipal : Activity() {
 
         afficherAccueil()
         demanderPermissions()
+        partage.demarrer()
     }
 
     override fun onResume() {
@@ -133,6 +135,8 @@ class EcranPrincipal : Activity() {
     fun afficherSurfaceImportee(surface: SurfaceImportee) = afficher(VueSurfaceImportee(this, surface))
 
     fun afficherDiagnostic() = afficher(VueDiagnostic(this))
+
+    fun afficherAdministration() = afficher(VueAdministration(this))
 
     fun afficherImport(nomFichier: String, texte: String) = afficher(VueImport(this, nomFichier, texte))
 
